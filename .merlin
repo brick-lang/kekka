@@ -1,0 +1,5 @@
+S common
+S type
+PKG core
+B _build/common
+B _build/type

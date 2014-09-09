@@ -1,0 +1,20 @@
+OASISFormat: 0.4
+Name:        kiln
+Version:     0.1
+Synopsis:    The lambda-k type system
+Authors:     Katherine Whitlock
+License:     BSD-3-clause
+Plugins:     DevFiles (0.4)
+BuildTools:  ocamlbuild
+BuildDepends: core, threads, str, res, cfg, bytes
+
+Library Common
+  Modules: Name, Name_prim
+  Path:    common
+  Install: false
+
+Library Type
+  Modules: Type
+  Path:    type
+  Install: false
+  BuildDepends: Common
