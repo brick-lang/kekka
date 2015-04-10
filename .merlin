@@ -1,5 +1,6 @@
 S common
 S type
 PKG core
+PKG ppx_deriving
 B _build/common
 B _build/type

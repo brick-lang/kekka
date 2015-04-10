@@ -6,12 +6,18 @@ Authors:     Katherine Whitlock
 License:     BSD-3-clause
 Plugins:     DevFiles (0.4)
 BuildTools:  ocamlbuild
-BuildDepends: core, threads, str, res, cfg, bytes
+BuildDepends: core, threads, str, res, cfg, bytes, ppx_deriving
 
 Library Common
   Modules: Name, Name_prim
   Path:    common
   Install: false
+
+Library Kind
+  Modules: Kind
+  Path:    kind
+  Install: false
+  BuildDepends: Common
 
 Library Type
   Modules: Type

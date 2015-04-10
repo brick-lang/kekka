@@ -7,5 +7,7 @@
 *.cmx
 *.cmxs
 *.cmxa
+*.mldylib
+*.mllib
 _build
 setup.data
