@@ -1,6 +1,14 @@
 
 open Core.Std
 
+(* let implode = List.fold_right ~init: "" ~f:(fun c cs -> (Char.to_string c) ^ cs) *)
+let implode l =
+  let result = String.create (List.length l) in
+  let rec imp i = function
+    | [] -> result
+    | c :: l -> result.[i] <- c; imp (i + 1) l in
+  imp 0 l;;
+
 (********************************* 
  * Names
  *********************************)
@@ -187,8 +195,7 @@ let split_camel s =
         else (c::(all_but_last pre2)) :: split_camel_list ((List.last_exn pre2)::post2)
       else (c::pre) :: split_camel_list post
   in
-  let char_list_to_string = List.fold_right ~init: "" ~f: (fun c cs -> (Char.to_string c) ^ cs) in 
-  String.to_list s |> split_camel_list |> List.map ~f:char_list_to_string
+  String.to_list s |> split_camel_list |> List.map ~f:implode
 
 
 let camel_to_dash s =
@@ -197,5 +204,98 @@ let camel_to_dash s =
   | [] -> ""
 
 (**************************************************
- * camel-case to dash-case
+ * name to file path
  **************************************************)
+
+let show_hex len i =
+  let show_hex_char = function
+    | d when d <= 9 -> Char.of_int_exn (d + Char.to_int '0')
+    | d             -> Char.of_int_exn (d - 10 + Char.to_int '0')
+  in
+  let rec hex_digits i =
+    let d = i / 16 in
+    let m = i % 16 in
+    if d = 0 then [m]
+    else m::(hex_digits d)
+  in
+  let hexs = List.map ~f:show_hex_char (List.rev @@ hex_digits i) in
+  implode @@ List.init (len - (List.length hexs)) ~f:(fun _ -> '0') @ hexs
+
+(**************************************************
+ * Ascii encode a name
+ * - on module names  '/' becomes '_'
+ * - on normal names '.' becomes '_' name to file path
+ **************************************************)
+
+let ascii_encode is_module name =
+  let encode_char c =
+    if Char.is_alphanum c then [c]
+    else String.to_list @@ match c with
+        | '/' when is_module -> "_"
+        | '.' when not is_module -> "_"
+        | '_' -> "__"
+        | '.' -> "_dot_"
+        | '-' -> "_dash_"   
+        | '+' -> "_plus_"
+        | '*' -> "_star_"
+        | '&' -> "_amp_"
+        | '~' -> "_tilde_"
+        | '!' -> "_excl_"
+        | '@' -> "_at_"
+        | '#' -> "_hash_"
+        | '$' -> "_dollar_"
+        | '%' -> "_perc_"
+        | '^' -> "_hat_"
+        | '=' -> "_eq_"
+        | ':' -> "_colon_"
+        | '<' -> "_lt_"
+        | '>' -> "_gt_"
+        | '[' -> "_lb_"
+        | ']' -> "_rb_"
+        | '?' -> "_ques_"
+        | '/' -> "_fs_"
+        | '\\'-> "_bs_"
+        | '(' -> "_lp_"
+        | ')' -> "_rp_"
+        | ',' -> "_comma_"
+        | ' ' -> "_space_"
+        | '\'' -> "_sq_"
+        | '\"' -> "_dq_"
+        | '`'  -> "_bq_"
+        | '{'  -> "_lc_"
+        | '}'  -> "_rc_"
+        | _ -> "_x" ^ show_hex 2 (Char.to_int c) ^ "_"
+  in
+  let encode_chars s =
+    let (dots,rest) = List.split_while ~f:(fun c -> c = '.') (String.to_list s) in
+    implode @@ (List.map ~f:(fun _ -> '_') dots) @ (List.concat_map ~f:encode_char rest)
+  in
+  if String.length name > 0 && Char.is_alphanum (String.get name 0) then
+    encode_chars name
+  else match name with
+    | "" -> "_null_"
+    | ".<>"   -> "_Total_"
+    | ".<|>"  -> "_Extend_"
+    | ".()"   -> "_Unit_"
+    | ".(,)"  -> "_Tuple2_"
+    | ".(,,)" -> "_Tuple3_"
+    | ".(,,,)"-> "_Tuple4_"
+    | "()"    -> "_unit_"
+    | "(,)"   -> "_tuple2_"
+    | "(,,)"  -> "_tuple3_"
+    | "(,,,)" -> "_tuple4_"
+    | "[]"    -> "_index_"
+    | _       ->
+      (* I hate OCaml string matching so much *)
+      match String.to_list name with
+      | '.'::'c'::'o'::'n'::' '::cs ->
+        (* trace ("con name: " ^ name) .. *) (* For debugging *)
+        "_con_" ^ encode_chars (implode cs)
+      | '.'::'t'::'y'::'p'::'e'::' '::cs ->
+        "_type_" ^ encode_chars (implode cs)
+      | _ -> encode_chars name
+    
+
+let module_name_to_path name =
+  ascii_encode true (show name) 
+
