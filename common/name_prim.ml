@@ -1,4 +1,10 @@
 
+
+let name_system_core = Name.create "std/core"
+let name_core = Name.create "core"
+let prelude_name s =
+  Name.qualify name_system_core @@ Name.create s;;
+
 (* Special *)
 let expr = Name.create ".expr"
 let typ = Name.create ".type"
@@ -13,7 +19,16 @@ let name_if = Name.create "if"
 let case = Name.create "case"
 let unit = Name.create "()"
 
-let pred_heap_div : Name.name = Name.prelude_name "hdiv"
+(* let pred_heap_div : Name.name = Name.prelude_name "hdiv" *)
+
+
+(* Lists *)
+let name_null = prelude_name "Nil"
+let name_cons = prelude_name "Cons"
+
+
+
+
 
 
 (* Primitive kind constructors *)

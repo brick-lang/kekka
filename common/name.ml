@@ -18,23 +18,22 @@ let implode l =
  * such that they can be compared too. (h1 > h2 => name1 > name2)
  * The hash is case-insensitive, just like comparisons on names.
  * Use 'name_case_equal' for case-sensitive comparisons. 
- *)
-type name = 
-  {
-    name_module : string;
-    hash_module : int;
-    name_id     : string;
-    hash_id     : int;
-  }
+*)
+type name =  {
+  name_module : string;
+  hash_module : int;
+  name_id     : string;
+  hash_id     : int;
+}
 
 type names = name list
 
 let name_case_equal
     { name_module = m1; name_id = n1; _ }
-    { name_module = m2; name_id = n2; _ } =
-  
+    { name_module = m2; name_id = n2; _ }
+  =
   (m1 = m2) && (n1 = n2)
-  
+
 (* Checks whether both names are in the same namespace *)
 let is_same_namespace name1 name2 =
   if (String.length name1.name_id > 0) && (String.length name2.name_id > 0) then
@@ -51,13 +50,13 @@ let lower_compare
   | 0 -> compare (String.lowercase n1) (String.lowercase n2)
   | lg -> lg
 
-let equal
+let eq_name
     ({ hash_module = hm1; hash_id = hn1; _ } as n1)
     ({ hash_module = hm2; hash_id = hn2; _ } as n2) =
-  
+
   (hn1 = hn2) && (hm1 = hm2) && (lower_compare n1 n2 = 0)
 
-let compare 
+let compare_name 
     ({ hash_module = hm1; hash_id = hn1; _ } as n1)
     ({ hash_module = hm2; hash_id = hn2; _ } as n2) =
   match compare hm1 hm2 with
@@ -66,7 +65,7 @@ let compare
       | lg -> lg)
   | lg -> lg 
 
-let show { name_module = m; name_id = n; _ } =
+let show_name { name_module = m; name_id = n; _ } =
   if String.is_empty m
   then n    
   else m ^ "/" ^ 
@@ -76,7 +75,7 @@ let show { name_module = m; name_id = n; _ } =
        else n
 
 (** Show quotes around the name *)
-let show_name name = "\"" ^ (show name) ^ "\""
+let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show_name name) ^ "\"")
 
 let new_qualified m n = 
   let short s = String.of_char_list @@ List.take (String.to_list @@ String.lowercase s) 4 in
@@ -91,12 +90,12 @@ let is_nil { name_module = m; name_id = n; _ } = String.is_empty n
 
 let qualify ({ name_module = x; name_id = m; hash_id = hm; _ } as n1)
     ({ name_module = y; name_id = n; hash_id = hn; _ } as n2) =
-    if ((String.is_empty x) && (String.is_empty y)) ||
-       ((String.is_empty x) && (m = y)) then
-      { name_module = m; hash_module = hm; name_id = n; hash_id = hn }
-    else
-      failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)"
-        (show n1) (show n2) ()
+  if ((String.is_empty x) && (String.is_empty y)) ||
+     ((String.is_empty x) && (m = y)) then
+    { name_module = m; hash_module = hm; name_id = n; hash_id = hn }
+  else
+    failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)"
+      (show_name n1) (show_name n2) ()
 
 let unqualify { name_id = n; hash_id = hn; _ } =
   { name_module = ""; hash_module = 0; name_id = n; hash_id = hn }
@@ -114,10 +113,10 @@ let qualifier { name_module = m; hash_module = hm; _} =
 let rec split_module_name name =
   if (is_qualified name) then
     split_module_name (qualifier name)
-  else List.map ~f:create @@ String.split ~on:'/' (show name)
+  else List.map ~f:create @@ String.split ~on:'/' (show_name name)
 
 let unsplit_module_name xs =
-  create @@ String.concat ?sep:(Some "/") (List.map ~f:show xs)
+  create @@ String.concat ?sep:(Some "/") (List.map ~f:show_name xs)
 
 
 (**************************************************
@@ -150,18 +149,18 @@ let is_hidden_name name =
   (String.length name.name_id) > 0 &&
   (String.get name.name_id 0) = '.'
 
-let new_field_name i =
-  new_hidden_name ("field" ^ (show i))
+(* let new_field_name i = *)
+(*   new_hidden_name ("field" ^ (show i)) *)
 
 let is_field_name = is_hidden_name
 
-let new_implicit_type_var_name i =
-  new_hidden_name ("t" ^ (show i))
-    
+(* let new_implicit_type_var_name i = *)
+(*   new_hidden_name ("t" ^ (show i)) *)
+
 let is_implicit_type_var_name = is_hidden_name
 
-let new_hidden_external_name name =
-  new_hidden_name ((show name) ^ "@extern")
+(* let new_hidden_external_name name = *)
+(*   new_hidden_name ((show name) ^ "@extern") *)
 
 (** Create a constructor creator name from the constructor name.
   * Used if special creation functions are used for the constructor.
@@ -231,40 +230,40 @@ let ascii_encode is_module name =
   let encode_char c =
     if Char.is_alphanum c then [c]
     else String.to_list @@ match c with
-        | '/' when is_module -> "_"
-        | '.' when not is_module -> "_"
-        | '_' -> "__"
-        | '.' -> "_dot_"
-        | '-' -> "_dash_"   
-        | '+' -> "_plus_"
-        | '*' -> "_star_"
-        | '&' -> "_amp_"
-        | '~' -> "_tilde_"
-        | '!' -> "_excl_"
-        | '@' -> "_at_"
-        | '#' -> "_hash_"
-        | '$' -> "_dollar_"
-        | '%' -> "_perc_"
-        | '^' -> "_hat_"
-        | '=' -> "_eq_"
-        | ':' -> "_colon_"
-        | '<' -> "_lt_"
-        | '>' -> "_gt_"
-        | '[' -> "_lb_"
-        | ']' -> "_rb_"
-        | '?' -> "_ques_"
-        | '/' -> "_fs_"
-        | '\\'-> "_bs_"
-        | '(' -> "_lp_"
-        | ')' -> "_rp_"
-        | ',' -> "_comma_"
-        | ' ' -> "_space_"
-        | '\'' -> "_sq_"
-        | '\"' -> "_dq_"
-        | '`'  -> "_bq_"
-        | '{'  -> "_lc_"
-        | '}'  -> "_rc_"
-        | _ -> "_x" ^ show_hex 2 (Char.to_int c) ^ "_"
+      | '/' when is_module -> "_"
+      | '.' when not is_module -> "_"
+      | '_' -> "__"
+      | '.' -> "_dot_"
+      | '-' -> "_dash_"   
+      | '+' -> "_plus_"
+      | '*' -> "_star_"
+      | '&' -> "_amp_"
+      | '~' -> "_tilde_"
+      | '!' -> "_excl_"
+      | '@' -> "_at_"
+      | '#' -> "_hash_"
+      | '$' -> "_dollar_"
+      | '%' -> "_perc_"
+      | '^' -> "_hat_"
+      | '=' -> "_eq_"
+      | ':' -> "_colon_"
+      | '<' -> "_lt_"
+      | '>' -> "_gt_"
+      | '[' -> "_lb_"
+      | ']' -> "_rb_"
+      | '?' -> "_ques_"
+      | '/' -> "_fs_"
+      | '\\'-> "_bs_"
+      | '(' -> "_lp_"
+      | ')' -> "_rp_"
+      | ',' -> "_comma_"
+      | ' ' -> "_space_"
+      | '\'' -> "_sq_"
+      | '\"' -> "_dq_"
+      | '`'  -> "_bq_"
+      | '{'  -> "_lc_"
+      | '}'  -> "_rc_"
+      | _ -> "_x" ^ show_hex 2 (Char.to_int c) ^ "_"
   in
   let encode_chars s =
     let (dots,rest) = List.split_while ~f:(fun c -> c = '.') (String.to_list s) in
@@ -294,8 +293,8 @@ let ascii_encode is_module name =
       | '.'::'t'::'y'::'p'::'e'::' '::cs ->
         "_type_" ^ encode_chars (implode cs)
       | _ -> encode_chars name
-    
+
 
 let module_name_to_path name =
-  ascii_encode true (show name) 
+  ascii_encode true (show_name name) 
 

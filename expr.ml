@@ -25,5 +25,5 @@ let rec to_string = function
   | Let(v,e,b)   -> Printf.sprintf "(let %s = %s in %s)" v (to_string e) (to_string b)
   | Catch(ex,b)  -> Printf.sprintf "(catch %s %s)" (to_string ex) (to_string b)
   | Run(e)       -> Printf.sprintf "(run %s)" (to_string e)
-  
+
 

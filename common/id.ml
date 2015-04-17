@@ -2,24 +2,25 @@ open Core.Std;;
 
 (* Types *)
 
-(* A list of identifiers *)
+(** Identifiers are unique compiler generated identities *)
+type id = int
+
+(** A list of identifiers *)
 type ids = id list
-(* Identifiers are unique compiler generated identities *)
-and id = int
 
-(* show quotes around the id *)
-let rec to_string id =
-  "\"" ^ (Int.to_string id) ^ "\""
+(** show quotes around the id *)
+let rec pp_id fmt id =
+  Format.pp_print_string fmt @@ "\"" ^ (Int.to_string id) ^ "\""
 
-and generate base_name i = 
-  create i
+(** create a fresh identifier *)
+let create i = i
 
-(* create a fresh identifier *)
-and create i = i
+let create_from_id id = id + 1
 
-and create_from_id id = id + 1
+(** Generate an 'Id' with a certain base name (which is ignored) :)  *)
+let generate base_name = create
 
 (* dummy identifier *)
-and nil: id = 0
+let nil : id = 0
 
-and number i = i
+let number i = i

@@ -1,6 +1,8 @@
 S common
 S type
 PKG core
-PKG ppx_deriving
+PKG ppx_deriving.show
+PKG ppx_deriving.eq
+PKG ppx_deriving.ord
 B _build/common
 B _build/type

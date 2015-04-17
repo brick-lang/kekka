@@ -1,15 +1,17 @@
 OASISFormat: 0.4
-Name:        kiln
+Name:        lambdak
 Version:     0.1
 Synopsis:    The lambda-k type system
 Authors:     Katherine Whitlock
 License:     BSD-3-clause
 Plugins:     DevFiles (0.4)
 BuildTools:  ocamlbuild
-BuildDepends: core, threads, str, res, cfg, bytes, ppx_deriving
+BuildDepends: core, threads, str, res, cfg,
+              bytes, ppx_deriving.show,
+              ppx_deriving.eq, ppx_deriving.ord
 
 Library Common
-  Modules: Name, Name_prim
+  Modules: Name, Name_prim, Syntax
   Path:    common
   Install: false
 
@@ -23,4 +25,5 @@ Library Type
   Modules: Type
   Path:    type
   Install: false
-  BuildDepends: Common
+  BuildDepends: Common, Kind
+

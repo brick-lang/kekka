@@ -1,7 +1,8 @@
 
 (**
  * Definitions of kinds and helper functions
- *)
+ * For more information, see Figure 1. of the paper.
+*)
 
 
 open Name
@@ -10,11 +11,13 @@ open Core.Std
 
 (** Kind constant *)
 type kind_con = name
+    [@@deriving show]
 
 (** Kinds *)
 type kind =
   | KCon of kind_con      (* kind constants "*", "->","!", "H", "P" *)
   | KApp of kind * kind   (* Application (only allowed for functions as yet) *)
+	      [@@deriving show]
 
 (**
  * Kind and Type variables come in three flavours: 'Unifiable'
@@ -24,7 +27,7 @@ type flavour =
   | Bound
   | Skolem
   | Meta
-with sexp
+      [@@deriving show]
 
 (* Kind @*@ *)
 let kind_star = KCon Name_prim.kind_star
@@ -42,8 +45,7 @@ let kind_effect = KCon Name_prim.kind_effect
 let kind_heap = KCon Name_prim.kind_heap
 
 (** Create a (kind) function from a kind to another kind *)
-let kind_fun k1 k2 : kind =
-  KApp(KApp(kind_arrow, k1), k2)
+let kind_fun k1 k2 : kind = KApp(KApp(kind_arrow, k1), k2)
 
 let kind_arrow_n (n:int) : kind =
   List.fold_right ~f:kind_fun ~init:(kind_fun kind_effect kind_star) @@ List.init n ~f:(fun _ -> kind_star)
@@ -60,7 +62,7 @@ let rec extract_kind_fun = function
       phys_equal k0 (kind_arrow) ->
     let (args,res) = extract_kind_fun k2 in
     ((k1::args), res)
-    
+
   | k -> ([],k)
 ;;
 
@@ -69,10 +71,11 @@ let is_kind_effect k = phys_equal k (kind_effect)
 
 let builtin_kinds : (name * kind) list =
   [
-    (Name_prim.kind_star, kind_star);
-    (Name_prim.kind_fun, kind_arrow);
+    (Name_prim.kind_star, kind_star); (* Value *)
+    (Name_prim.kind_fun, kind_arrow); (* Type constructor *)
     (Name_prim.kind_pred, kind_pred);
-    (Name_prim.kind_effect, kind_effect);
+    (Name_prim.kind_effect, kind_effect); (* Effect constants *)
     (Name_prim.kind_label, kind_label);
-    (Name_prim.kind_heap, kind_heap)
+    (Name_prim.kind_heap, kind_heap) (* Heaps *)
   ]
+
