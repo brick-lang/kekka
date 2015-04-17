@@ -41,7 +41,7 @@ let is_private = function
  ************************************)
 
 type data_kind = Inductive | CoInductive | Retractive
-		   [@@deriving eq]
+                   [@@deriving eq]
 
 let show_data_kind = function
   | Inductive -> "type"
@@ -55,7 +55,7 @@ let pp_data_kind fmt dk = Format.pp_print_string fmt (show_data_kind dk)
  ************************************)
 
 type def_sort = DefFun | DefVal | DefVar
-		  [@@deriving eq,ord]
+                  [@@deriving eq,ord]
 
 let show_def_sort = function
   | DefFun -> "fun"
@@ -76,4 +76,4 @@ type assoc = AssocNone
 type fixity = FixInfix of int * assoc (** precedence and associativity  *)
             | FixPrefix
             | FixPostfix
-		[@@deriving eq,show]
+                [@@deriving eq,show]

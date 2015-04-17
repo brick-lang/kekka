@@ -10,20 +10,21 @@ BuildDepends: core, threads, str, res, cfg,
               bytes, ppx_deriving.show,
               ppx_deriving.eq, ppx_deriving.ord
 
-Library Common
-  Modules: Name, Name_prim, Syntax
+Library common
+  Modules: Name, Name_prim, Syntax,
+           Failure, Id
   Path:    common
   Install: false
 
-Library Kind
+Library kind
   Modules: Kind
   Path:    kind
   Install: false
-  BuildDepends: Common
+  BuildDepends: common
 
-Library Type
+Library type
   Modules: Type
   Path:    type
   Install: false
-  BuildDepends: Common, Kind
+  BuildDepends: kind
 

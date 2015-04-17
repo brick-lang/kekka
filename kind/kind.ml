@@ -17,7 +17,7 @@ type kind_con = name
 type kind =
   | KCon of kind_con      (* kind constants "*", "->","!", "H", "P" *)
   | KApp of kind * kind   (* Application (only allowed for functions as yet) *)
-	      [@@deriving show]
+              [@@deriving show]
 
 (**
  * Kind and Type variables come in three flavours: 'Unifiable'
@@ -55,7 +55,7 @@ let kind_extend = kind_fun kind_label (kind_fun kind_effect kind_effect)
 let is_kind_fun = function
   | KApp(KApp(k0,k1),k2) -> phys_equal (k0) (kind_arrow)
   | _ -> false
-;;
+
 
 let rec extract_kind_fun = function
   | KApp(KApp(k0,k1),k2) when
@@ -64,7 +64,7 @@ let rec extract_kind_fun = function
     ((k1::args), res)
 
   | k -> ([],k)
-;;
+
 
 let is_kind_star k = phys_equal k (kind_star)
 let is_kind_effect k = phys_equal k (kind_effect)
