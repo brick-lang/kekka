@@ -1,15 +1,17 @@
+(**
+ * types.ml
+ * Ported from Daan Leijin's implementation,
+ * which is licensed under the APLv2.0
+ * Copyright 2012 Microsoft Corporation, Daan Leijen
+ * Copyright 2015 Katherine Whitlock
+ *)
+
 open Name
 open Name_prim
 open Id
 open Kind
 open Syntax
 open Failure
-
-(*
- * types.ml
- * Ported from Daan Leijin's implementation,
- * which is licensed under the Apache License
- *)
 
 (** This is the primary type-system, the heart of \lambda^k *)
 
@@ -546,3 +548,49 @@ let is_optional (tp : tau) : bool =
 let make_optional (tp : tau) : tau =
   TApp(type_optional, [tp]) 
 
+(** Remove type synonym indirections *)
+let rec pruneSyn : rho -> rho = function
+  | TSyn(sin,args,t) -> pruneSyn t
+  | TApp(t1,ts)      -> TApp((pruneSyn t1), (List.map ~f:pruneSyn ts))
+  | rho              -> rho
+
+
+(*****************************************************
+  Conversion between types 
+ *****************************************************)
+module type ISTYPE = sig
+  type t
+  val to_type : t -> typ
+end
+
+
+(* TODO: somehow integrate OCaml's functors into this *)
+
+
+(******************************************************
+  Equality between types
+ ******************************************************)
+let rec match_type tp1 tp2 =
+  match (expand_syn tp1, expand_syn tp2) with
+  | (TForall(vs1,ps1,t1), TForall(vs2,ps2,t2)) -> (vs1 = vs2 && match_preds ps1 ps2 && match_type t1 t2)
+  | (TFun(pars1,eff1,t1),TFun(pars2,eff2,t2))  -> (match_types (List.map pars1 ~f:snd) (List.map ~f:snd pars2) && match_effect eff1 eff2 && match_type t1 t2)
+  | (TCon(c1),TCon(c2))                        -> c1 = c2
+  | (TVar(v1),TVar(v2))                        -> v1 = v2
+  | (TApp(t1,ts1),TApp(t2,ts2))                -> (match_type t1 t2 && match_types ts1 ts2)
+  (* | (TSyn(syn1,ts1,t1),TSyn(syn2,ts2,t2))      -> (syn1 = syn2 && match_types ts1 ts2 && match_type t1 t2) *)
+  | _ -> false
+
+and match_types ts1 ts2 =
+  List.fold2_exn ts1 ts2 ~init:true ~f:(fun i l r -> i && (match_type l r))
+
+and match_effect eff1 eff2 =
+  match_type (order_effect eff1) (order_effect eff2)
+
+and match_pred p1 p2 =
+  match (p1,p2) with
+  | (PredSub(sub1,sup1), PredSub(sub2,sup2)) -> (match_type sub1 sub2 && match_type sup1 sup2)
+  | (PredIFace(n1,ts1), PredIFace(n2,ts2))   -> (n1 = n2 && match_types ts1 ts2)
+  | _ -> false
+
+and match_preds ps1 ps2 =
+  List.fold2_exn ps1 ps2 ~init:true ~f:(fun i l r -> i && (match_pred l r))
