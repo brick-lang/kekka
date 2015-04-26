@@ -4,8 +4,6 @@ Kekka is a λ-k implementation ported from Daan Leijen's Kōka compiler, that wi
 
 Unlike Kōka, which is a complete language, Kekka only strives to act as an inference and unification system, an intermediary step in the full process of compilation. Because of that, the goal is to have a completely AST-independent typing module that is not just usable by Brick/Kiln, but in other projects as well, like for error-checking and semantic analysis tools.
 
-I don't know if the 'k' in λ-k (techinically λ^k) is in reference to Kōka or the internal kind system. I think it's Kōka, because in the paper, kinds are denoted by a capitol 'K' (well, mostly), and the name of the system uses a lowercase 'k'.
-
 ## Documentation
 Part of the reason I am porting this is to have a much better understanding of the internals of the system, as it is relatively complex when compared to something like a [simple HM engine](https://github.com/toroidal-code/hm-rb). I also want to explore the possibility of integrating function fragmentation and calling semantics similar to my experimentation in [HMc](https://github.com/toroidal-code/hm-ml), and see how far the effect recogniction can go in the area of concurrency and parallelization.
 
