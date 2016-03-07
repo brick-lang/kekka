@@ -6,9 +6,9 @@ type t =
   | Let       of string * t * t (* let x = e1 in e2 *)
   | Catch     of t * t          (* catch e1 e2 *)
   | Run       of t              (* run e *)
-
+				
 and primitive = Unit | Fix | Throw | New | Bang | Assign
-
+		
 let prim_to_string = function
   | Unit   -> "()"
   | Fix    -> "fix"
@@ -16,7 +16,7 @@ let prim_to_string = function
   | New    -> "new"
   | Bang   -> "(!)"
   | Assign -> "(:=)"
-
+  
 let rec to_string = function
   | Var(v)       -> v
   | Primitive(p) -> prim_to_string p
@@ -25,5 +25,5 @@ let rec to_string = function
   | Let(v,e,b)   -> Printf.sprintf "(let %s = %s in %s)" v (to_string e) (to_string b)
   | Catch(ex,b)  -> Printf.sprintf "(catch %s %s)" (to_string ex) (to_string b)
   | Run(e)       -> Printf.sprintf "(run %s)" (to_string e)
-
-
+					      
+					      
