@@ -240,7 +240,6 @@ let rec ftv : type a. a has_type_var -> TVSet.t = function
       | Type.PredIFace (name, args) -> ftv @@ List (List.map ~f:(fun x -> Type x) args)
     end 
     
-
 let rec btv : type a. a has_type_var -> TVSet.t = function
   | Sub sub -> tvs_union (tvs_new (TVMap.keys sub))
                  (ftv @@ List (TVMap.elems sub))

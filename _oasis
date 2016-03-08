@@ -7,14 +7,19 @@ License:     BSD-3-clause
 Plugins:     DevFiles (0.4)
 BuildTools:  ocamlbuild
 BuildDepends: core, threads, str, res, cfg,
-              bytes, ppx_deriving.show,
-              ppx_deriving.eq, ppx_deriving.ord
+              bytes
 
 Library common
   Modules: Name, Name_prim, Syntax,
-           Failure, Id
+           Failure, Id, Util
   Path:    common
   Install: false
+
+Library core
+  Modules: Core
+  Path:    core
+  Install: false
+  BuildDepends: common, type
 
 Library kind
   Modules: Kind
@@ -23,8 +28,7 @@ Library kind
   BuildDepends: common
 
 Library type
-  Modules: Type
+  Modules: Type, TypeKind, TypeVar
   Path:    type
   Install: false
   BuildDepends: kind
-
