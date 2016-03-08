@@ -113,7 +113,7 @@ align_ops = true
 align_params = always
 
 
-semi_as_op = false
+# semi_as_op = false
 
 #
 #    SYNTAX EXTENSIONS
