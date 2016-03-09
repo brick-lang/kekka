@@ -2,8 +2,25 @@ open Core.Std                   (* TODO: Make this Core_kernel
                                  * and turn TVMap and TVSet into
                                  * Map and Set*)
 open Util
+open Type
+open Kind
 open BasicClasses
 
+open implicit Show_typ
+open implicit Show_pred
+open implicit Show_scheme
+open implicit Show_sigma
+open implicit Show_tau
+open implicit Show_rho
+open implicit Show_effect
+open implicit Show_infer_type
+open implicit Show_type_var
+open implicit Show_flavour
+open implicit Show_type_con
+open implicit Show_type_syn
+open implicit Show_syn_info
+  
+  
 (* Really fancy module magic *)
 module T = struct
   type t = Type.type_var
@@ -87,9 +104,9 @@ let rec show_tp =
   let open Type in
   function
     | Type.TVar tvar -> show_type_var tvar
-    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Kind.Show_kind.show tcon.type_con_kind
+    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ show tcon.type_con_kind
     | TApp(tp,args)  -> show_tp tp ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">"
-    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Kind.Show_kind.show syn.type_syn_kind
+    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ show syn.type_syn_kind
                              ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">" ^ "[" ^ show_tp body ^ "])"
     | _ -> "?"
 
@@ -159,20 +176,29 @@ type sub = tau TVMap.t          (* \sigma:\alpha \mapsto \tau *)
 
 (* Entities that contain type variables *)
 module type HasTypeVar = sig
-  type a
+  type t
   (* Substitute type variables by $\tau$ types *)
-  val substitute : sub -> a -> a
+  val substitute : sub -> t -> t
   (* Return free type variables *)
-  val ftv : a -> TVSet.t
+  val ftv : t -> TVSet.t
   (* Return bound type variables *)
-  val btv : a -> TVSet.t
+  val btv : t -> TVSet.t
 end
+
+let substitute {H:HasTypeVar} sub s = H.substitute sub s
+let ftv {H:HasTypeVar} s = H.ftv s
+let btv {H:HasTypeVar} s = H.btv s
 
 (* Entities that contain type variables that can be put in a particular order *)
 module type HasOrderedTypeVar = sig
+  type t
   (* Return free type variables in a particular order, may contain duplicates *)
   val odftv : tau -> t list
 end
+
+
+
+
 (* TODO: inline-replace all of these with their corresponding functions *)
 
 let sub_count : sub -> int = TVMap.length
@@ -181,7 +207,7 @@ let sub_is_null : sub -> bool = TVMap.is_empty
 let sub_new (sub : (t * tau) list) : sub =
   Failure.assertion ("TypeVar.sub_new.KindMisMatch: " ^ (string_of_int @@ List.length sub)
                      ^ String.concat (List.map ~f:(fun (x,t) -> "(" ^ show_type_var x ^ " |-> " ^ show_tp t ^ ")") sub))
-    (List.for_all ~f:(fun (x,t) -> Kind.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
+    (List.for_all ~f:(fun (x,t) -> Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
     Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 let sub_range : sub -> tau list = TVMap.data
@@ -199,114 +225,196 @@ let sub_find tvar sub : tau = match sub_lookup tvar sub with
   | None -> Type.TVar tvar
   | Some tau ->
       Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
-                         ^ Type.Show_type_var.show tvar ^ ":"
-                         ^ Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
-                         ^ "?" ^ ":" ^ Kind.Show_kind.show (TypeKind.get_kind_typ tau))
-        (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
+                         ^ Show_type_var.show tvar ^ ":"
+                         ^ Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                         ^ "?" ^ ":" ^ Show_kind.show (TypeKind.get_kind_typ tau))
+        (Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
+
+let (|->) : {H:HasTypeVar} -> sub -> H.t -> H.t =
+  fun {H:HasTypeVar} sub x -> if sub_is_null sub then x else substitute sub x
+
+implicit
+module HasTypeVar_list {H:HasTypeVar} : HasTypeVar with type t = H.t list = struct
+  type t = H.t list
+  let substitute sub xs = List.map xs ~f:(fun x -> H.substitute sub x)
+  let ftv xs = tvs_unions (List.map xs ~f:(fun x -> H.ftv x))
+  let btv xs = tvs_unions (List.map xs ~f:(fun x -> H.btv x))
+end
+
+module rec HasTypeVar_pred_rec : HasTypeVar with type t = pred = struct
+  type t = pred
+  open HasTypeVar_typ_rec
+  let substitute subst pred = match pred with
+    | PredSub (sub, super) -> PredSub (substitute subst sub, substitute subst super)
+    | PredIFace (name, args) ->
+        let module HasTypeVar_list_typ = HasTypeVar_list{HasTypeVar_typ_rec} in
+        PredIFace (name, HasTypeVar_list_typ.substitute subst args)
+  let ftv = function
+    | PredSub (sub, super) -> tvs_union (ftv sub) (ftv super)
+    | PredIFace (_, args) ->
+        let module HasTypeVar_list_typ = HasTypeVar_list{HasTypeVar_typ_rec} in
+        HasTypeVar_list_typ.ftv args
+  let btv _ = tvs_empty
+end
+
+and HasTypeVar_typ_rec : HasTypeVar with type t = typ = struct
+  type t = typ
+  let substitute sub t =
+    let rec substitute' sub t =
+      match t with
+      | TForall (vars,preds,tp) ->
+          let sub' = sub_remove vars sub in
+          let implicit module HasTypeVar_list_pred = HasTypeVar_list{HasTypeVar_pred_rec} in
+          TForall (vars,
+                   (sub' |-> preds),
+                   (if sub_is_null sub' then tp else substitute' sub' tp))
+                     
+    (* | Type.TFun (args,effect,result) -> *)
+    (*     Type.TFun (List.map ~f:(fun (name,tp) -> (name, unwrap @@ substitute sub (Type tp))) args, *)
+    (*                unwrap (substitute sub (Type effect)), *)
+    (*                unwrap (substitute sub (Type result))) *)
+    (* | Type.TCon _ -> t *)
+    (* | Type.TVar tvar -> sub_find tvar sub *)
+    (* | Type.TApp (tp,arg) -> Type.TApp (unwrap @@ substitute sub (Type tp), *)
+    (*                                    (List.map ~f:unwrap @@ *)
+    (*                                     unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) arg)))) *)
+    (* | Type.TSyn (syn,xs,tp) -> Type.TSyn (syn, *)
+    (*                                       (List.map ~f:unwrap @@ *)
+    (*                                        unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) xs))), *)
+    (*                                       unwrap @@ substitute sub (Type tp)) *)
+      | _ -> assert false
+  in substitute' sub t
+
+  let ftv tp = match tp with _ -> assert false
+  let btv tp = match tp with _ -> assert false
+end
+
+implicit module HasTypeVar_typ = HasTypeVar_typ_rec
+implicit module HasTypeVar_pred = HasTypeVar_pred_rec
+
+implicit
+module HasTypeVar_sub : HasTypeVar with type t = sub = struct
+  type t = sub
+  let substitute sub (s:sub) = TVMap.map s ~f:(fun (k:tau) -> substitute sub k)
+  let ftv sub = tvs_empty (* tvs_union (tvs_new (TVMap.keys sub)) (ftv (TVMap.elems sub)) *)
+  let btv _ = tvs_empty
+end
+
+
+implicit
+module HasTypeVar_option {H:HasTypeVar} : HasTypeVar with type t = H.t option = struct
+  type t = H.t option
+  let substitute sub = function Some x -> Some (H.substitute sub x)
+                              | None -> None
+  let ftv = function Some x -> H.ftv x
+                   | None -> tvs_empty
+                   
+  let btv = function Some x -> H.btv x
+                   | None -> tvs_empty
+end
+
+
+
+
 
 
 
 (* GADTs GAHHHH *)
-type _ has_type_var =
-  | Sub  : tau has_type_var TVMap.t -> tau has_type_var TVMap.t has_type_var
-  | Option : 'a has_type_var option -> 'a has_type_var option has_type_var
-  | Pair : 'b has_type_var * 'c has_type_var -> ('b has_type_var * 'c has_type_var) has_type_var
-  | Type : tau -> tau has_type_var
-  | Pred : Type.pred -> Type.pred has_type_var
-  | List : 'a has_type_var list -> 'a has_type_var list has_type_var
-  (* | Range : range -> range has_type_var *)
+(* type _ has_type_var = *)
+(*   | Sub  : tau has_type_var TVMap.t -> tau has_type_var TVMap.t has_type_var *)
+(*   | Option : 'a has_type_var option -> 'a has_type_var option has_type_var *)
+(*   | Pair : 'b has_type_var * 'c has_type_var -> ('b has_type_var * 'c has_type_var) has_type_var *)
+(*   | Type : tau -> tau has_type_var *)
+(*   | Pred : Type.pred -> Type.pred has_type_var *)
+(*   | List : 'a has_type_var list -> 'a has_type_var list has_type_var *)
+(*   (\* | Range : range -> range has_type_var *\) *)
 
 
-let rec ftv : type a. a has_type_var -> TVSet.t = function
-  | Sub sub -> tvs_union (tvs_new (TVMap.keys sub))
-                 (ftv @@ List (TVMap.elems sub))
-  | Option mb -> (match mb with Some x -> ftv x | None -> tvs_empty)
-  | Pair (x,y) -> tvs_union (ftv x) (ftv y)
-  | List xs -> tvs_unions (List.map ~f:ftv xs)
-  (* | Range _ -> tvs_empty *)
-  | Type t -> begin
-      let open Type in
-      match t with
-      | TForall (vars,preds,tp) -> tvs_remove vars (tvs_union (ftv @@ List (List.map ~f:(fun x -> Pred x) preds)) (ftv (Type tp)))
-      | TFun (args,effect,result) -> tvs_unions (ftv (Type effect) :: ftv (Type result)
-                                                 :: List.map ~f:(fun x -> ftv @@ Type (snd x)) args)
-      | TCon _ -> tvs_empty
-      | TVar tvar -> tvs_single tvar
-      | TApp (tp,arg) -> tvs_union (ftv (Type tp)) (ftv @@ List (List.map ~f:(fun x -> Type x) arg))
-      | TSyn (syn,xs,tp) -> tvs_union (ftv @@ List (List.map ~f:(fun x -> Type x) xs)) (ftv (Type tp))
-    end
-  | Pred p -> begin
-      match p with
-      | Type.PredSub (sub,super) -> tvs_union (ftv (Type sub)) (ftv (Type super))
-      | Type.PredIFace (name, args) -> ftv @@ List (List.map ~f:(fun x -> Type x) args)
-    end 
+(* let rec ftv : type a. a has_type_var -> TVSet.t = function *)
+(*   | Option mb -> (match mb with Some x -> ftv x | None -> tvs_empty) *)
+(*   | Pair (x,y) -> tvs_union (ftv x) (ftv y) *)
+(*   | List xs -> tvs_unions (List.map ~f:ftv xs) *)
+(*   (\* | Range _ -> tvs_empty *\) *)
+(*   | Type t -> begin *)
+(*       let open Type in *)
+(*       match t with *)
+(*       | TForall (vars,preds,tp) -> tvs_remove vars (tvs_union (ftv @@ List (List.map ~f:(fun x -> Pred x) preds)) (ftv (Type tp))) *)
+(*       | TFun (args,effect,result) -> tvs_unions (ftv (Type effect) :: ftv (Type result) *)
+(*                                                  :: List.map ~f:(fun x -> ftv @@ Type (snd x)) args) *)
+(*       | TCon _ -> tvs_empty *)
+(*       | TVar tvar -> tvs_single tvar *)
+(*       | TApp (tp,arg) -> tvs_union (ftv (Type tp)) (ftv @@ List (List.map ~f:(fun x -> Type x) arg)) *)
+(*       | TSyn (syn,xs,tp) -> tvs_union (ftv @@ List (List.map ~f:(fun x -> Type x) xs)) (ftv (Type tp)) *)
+(*     end *)
+(*   | Pred p -> begin *)
+(*       match p with *)
+(*       | Type.PredSub (sub,super) -> tvs_union (ftv (Type sub)) (ftv (Type super)) *)
+(*       | Type.PredIFace (name, args) -> ftv @@ List (List.map ~f:(fun x -> Type x) args) *)
+(*     end *)
     
-let rec btv : type a. a has_type_var -> TVSet.t = function
-  | Sub sub -> tvs_union (tvs_new (TVMap.keys sub))
-                 (ftv @@ List (TVMap.elems sub))
-  | Option mb -> (match mb with Some x -> ftv x | None -> tvs_empty)
-  | Pair (x,y) -> tvs_union (btv x) (btv y)
-  | List xs -> tvs_unions (List.map ~f:btv xs)
-  (* | Range _ -> tvs_empty *)
-  | Type t -> begin
-      let open Type in
-      match t with
-      | TForall (vars,preds,tp) -> tvs_insert_all vars (tvs_union (ftv @@ List (List.map ~f:(fun x -> Pred x) preds)) (btv (Type tp)))
-      | TFun (args,effect,result) -> tvs_unions (btv (Type effect) :: btv (Type result)
-                                                 :: List.map ~f:(fun x -> btv @@ Type (snd x)) args)
-      | TSyn (syn,xs,tp) -> btv @@ Type tp
-      | TApp (tp,arg) -> tvs_union (btv (Type tp)) (btv @@ List (List.map ~f:(fun x -> Type x) arg))
-      | _ -> tvs_empty
-    end
-  | Pred _ -> tvs_empty
+(* let rec btv : type a. a has_type_var -> TVSet.t = function *)
+(*   | Option mb -> (match mb with Some x -> ftv x | None -> tvs_empty) *)
+(*   | Pair (x,y) -> tvs_union (btv x) (btv y) *)
+(*   | List xs -> tvs_unions (List.map ~f:btv xs) *)
+(*   (\* | Range _ -> tvs_empty *\) *)
+(*   | Type t -> begin *)
+(*       let open Type in *)
+(*       match t with *)
+(*       | TForall (vars,preds,tp) -> tvs_insert_all vars (tvs_union (ftv @@ List (List.map ~f:(fun x -> Pred x) preds)) (btv (Type tp))) *)
+(*       | TFun (args,effect,result) -> tvs_unions (btv (Type effect) :: btv (Type result) *)
+(*                                                  :: List.map ~f:(fun x -> btv @@ Type (snd x)) args) *)
+(*       | TSyn (syn,xs,tp) -> btv @@ Type tp *)
+(*       | TApp (tp,arg) -> tvs_union (btv (Type tp)) (btv @@ List (List.map ~f:(fun x -> Type x) arg)) *)
+(*       | _ -> tvs_empty *)
+(*     end *)
+(*   | Pred _ -> tvs_empty *)
   
-let unwrap : type a. a has_type_var -> a = function
-  | Sub s -> s
-  | Type t -> t
-  | List l -> l
-  | Pred p -> p
-  | Option o -> o
-  | Pair (x,y) -> (x,y)
+(* let unwrap : type a. a has_type_var -> a = function *)
+(*   | Sub s -> s *)
+(*   | Type t -> t *)
+(*   | List l -> l *)
+(*   | Pred p -> p *)
+(*   | Option o -> o *)
+(*   | Pair (x,y) -> (x,y) *)
 
-let rec substitute : type a. sub -> a has_type_var -> a has_type_var = fun sub -> function
-  | Sub s -> Sub (TVMap.map s ~f:(fun k -> substitute sub k))
-  | Option mb ->
-      (match mb with Some x -> Option (Some (substitute sub x))
-                   | None -> Option None)
-  | Pair (x,y) -> Pair (substitute sub x, substitute sub y)
-  | List xs -> List (List.map ~f:(substitute sub) xs)
-  (* | Range r -> r *)
-  | Type t -> Type begin
-      match t with
-      | Type.TForall (vars,preds,tp) ->
-          let sub' = sub_remove vars sub in
-          let preds = List (List.map preds ~f:(fun p -> Pred p)) in
-          Type.TForall (vars,
-                              List.map ~f:unwrap @@ unwrap (sub' |-> preds),
-                              unwrap (sub' |-> (Type tp)))
-      | Type.TFun (args,effect,result) ->
-          Type.TFun (List.map ~f:(fun (name,tp) -> (name, unwrap @@ substitute sub (Type tp))) args,
-                           unwrap (substitute sub (Type effect)),
-                           unwrap (substitute sub (Type result)))
-      | Type.TCon _ -> t
-      | Type.TVar tvar -> sub_find tvar sub
-      | Type.TApp (tp,arg) -> Type.TApp (unwrap @@ substitute sub (Type tp),
-                                         (List.map ~f:unwrap @@
-                                          unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) arg))))
-      | Type.TSyn (syn,xs,tp) -> Type.TSyn (syn,
-                                            (List.map ~f:unwrap @@
-                                             unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) xs))),
-                                            unwrap @@ substitute sub (Type tp))
-    end
-  | Pred p -> begin
-      match p with
-      | Type.PredSub (sub',super) -> Pred (Type.PredSub (unwrap @@ substitute sub (Type sub'),
-                                                         unwrap @@ substitute sub (Type super)))
-      | Type.PredIFace (name,args) -> Pred (Type.PredIFace (name,
-                                                            List.map ~f:unwrap @@
-                                                            unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) args))))
-    end
+(* let rec substitute : type a. sub -> a has_type_var -> a has_type_var = fun sub -> function *)
+(*   | Option mb -> *)
+(*       (match mb with Some x -> Option (Some (substitute sub x)) *)
+(*                    | None -> Option None) *)
+(*   | Pair (x,y) -> Pair (substitute sub x, substitute sub y) *)
+(*   | List xs -> List (List.map ~f:(substitute sub) xs) *)
+(*   (\* | Range r -> r *\) *)
+(*   | Type t -> Type begin *)
+(*       match t with *)
+(*       | Type.TForall (vars,preds,tp) -> *)
+(*           let sub' = sub_remove vars sub in *)
+(*           let preds = List (List.map preds ~f:(fun p -> Pred p)) in *)
+(*           Type.TForall (vars, *)
+(*                               List.map ~f:unwrap @@ unwrap (sub' |-> preds), *)
+(*                               unwrap (sub' |-> (Type tp))) *)
+(*       | Type.TFun (args,effect,result) -> *)
+(*           Type.TFun (List.map ~f:(fun (name,tp) -> (name, unwrap @@ substitute sub (Type tp))) args, *)
+(*                            unwrap (substitute sub (Type effect)), *)
+(*                            unwrap (substitute sub (Type result))) *)
+(*       | Type.TCon _ -> t *)
+(*       | Type.TVar tvar -> sub_find tvar sub *)
+(*       | Type.TApp (tp,arg) -> Type.TApp (unwrap @@ substitute sub (Type tp), *)
+(*                                          (List.map ~f:unwrap @@ *)
+(*                                           unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) arg)))) *)
+(*       | Type.TSyn (syn,xs,tp) -> Type.TSyn (syn, *)
+(*                                             (List.map ~f:unwrap @@ *)
+(*                                              unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) xs))), *)
+(*                                             unwrap @@ substitute sub (Type tp)) *)
+(*     end *)
+(*   | Pred p -> begin *)
+(*       match p with *)
+(*       | Type.PredSub (sub',super) -> Pred (Type.PredSub (unwrap @@ substitute sub (Type sub'), *)
+(*                                                          unwrap @@ substitute sub (Type super))) *)
+(*       | Type.PredIFace (name,args) -> Pred (Type.PredIFace (name, *)
+(*                                                             List.map ~f:unwrap @@ *)
+(*                                                             unwrap @@ substitute sub (List (List.map ~f:(fun x -> Type x) args)))) *)
+(*     end *)
 
   (* | Type t -> begin match t with *)
   (*     | Type.TForall (vars,preds,tp) -> *)
@@ -317,34 +425,34 @@ let rec substitute : type a. sub -> a has_type_var -> a has_type_var = fun sub -
   (*   end *)
 
 
-and (|->) : type a. sub -> a has_type_var -> a has_type_var = fun sub x ->
-  if sub_is_null sub then
-    x
-  else
-    (substitute sub x)
+(* and (|->) : type a. sub -> a has_type_var -> a has_type_var = fun sub x -> *)
+(*   if sub_is_null sub then *)
+(*     x *)
+(*   else *)
+(*     (substitute sub x) *)
 
 
-let sub_single tvar (tau:tau) : sub =
-  (** Top assertion is invalid; it can happen (and happens) in the CoreF typechecker when
-   * typechecking $\forall \alpha. f \alpha$ with $f :: \forall \beta. \beta \rightarrow \beta$, that a bound variable ($\beta$) with
-   * number ID must be substituted for another bound variable ($\alpha$), which *could* have the same
-   * ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular,
-   * the IDs of built-in types such as .select must be distinct from further IDs generated
-   * by the compiler. *)
-  Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar)
-    (not (TVSet.mem (ftv (Type tau)) tvar)) @@
-  Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
-  Map.singleton tvar tau
+(* let sub_single tvar (tau:tau) : sub = *)
+(*   (\** Top assertion is invalid; it can happen (and happens) in the CoreF typechecker when *)
+(*    * typechecking $\forall \alpha. f \alpha$ with $f :: \forall \beta. \beta \rightarrow \beta$, that a bound variable ($\beta$) with *)
+(*    * number ID must be substituted for another bound variable ($\alpha$), which *could* have the same *)
+(*    * ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular, *)
+(*    * the IDs of built-in types such as .select must be distinct from further IDs generated *)
+(*    * by the compiler. *\) *)
+(*   Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) *)
+(*     (not (TVSet.mem (ftv (Type tau)) tvar)) @@ *)
+(*   Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@ *)
+(*   Map.singleton tvar tau *)
 
-let sub_find tvar sub : tau =
-  match sub_lookup tvar sub with
-  | None -> Type.TVar tvar
-  | Some tau -> Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
-                                   ^ show_type_var tvar ^ ":"
-                                   ^ Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
-                                   ^ "?" ^ ":" ^ Kind.Show_kind.show (TypeKind.get_kind_typ tau))
-                  (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar)
-                     (TypeKind.get_kind_typ tau)) tau
+(* let sub_find tvar sub : tau = *)
+(*   match sub_lookup tvar sub with *)
+(*   | None -> Type.TVar tvar *)
+(*   | Some tau -> Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: " *)
+(*                                    ^ show_type_var tvar ^ ":" *)
+(*                                    ^ Show_kind.show (TypeKind.get_kind_type_var tvar) ^ "," *)
+(*                                    ^ "?" ^ ":" ^ Show_kind.show (TypeKind.get_kind_typ tau)) *)
+(*                   (Eq_kind.equal (TypeKind.get_kind_type_var tvar) *)
+(*                      (TypeKind.get_kind_typ tau)) tau *)
 
 
 (* let sub_compose sub1 (sub2:sub) : sub = TVMap.union sub1 (sub1 |-> sub2) *)

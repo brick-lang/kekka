@@ -2,11 +2,9 @@
 module type Eq = sig
   type t
   val equal  : t -> t -> bool
-  val nequal : t -> t -> bool
 end
 
 let equal {E:Eq} x y = E.equal x y
-let nequal {E:Eq} x y = E.nequal x y
 
 module type Ord = sig
   type t 

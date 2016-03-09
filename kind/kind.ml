@@ -7,13 +7,14 @@
 
 open Core.Std
 open Name
+open BasicClasses
   
   
 (** Kind constant *)
 type kind_con = name
   
 implicit
-module Eq_kind_con = struct
+module Eq_kind_con : Eq with type t = kind_con = struct
   type t = kind_con
   let equal x y = Name.Eq_name.equal x y
 end
@@ -30,7 +31,7 @@ type kind =
   | KApp of kind * kind   (* Application (only allowed for functions as yet) *)
 
 implicit
-module Eq_kind = struct
+module Eq_kind : Eq with type t = kind = struct
   type t = kind
   let equal x y =
     let rec equal' x y = match x with

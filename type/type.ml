@@ -260,7 +260,6 @@ module Eq_flavour : Eq with type t = flavour = struct
     | Meta   -> (match y with Meta   -> true | _ -> false)
     | Skolem -> (match y with Skolem -> true | _ -> false)
     | Bound  -> (match y with Bound  -> true | _ -> false)
-  let nequal x y = not (equal x y)
 end
 
 implicit
