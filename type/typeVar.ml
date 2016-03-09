@@ -2,14 +2,15 @@ open Core.Std                   (* TODO: Make this Core_kernel
                                  * and turn TVMap and TVSet into
                                  * Map and Set*)
 open Util
+open BasicClasses
 
 (* Really fancy module magic *)
 module T = struct
   type t = Type.type_var
   let compare = Type.compare_type_var
   let compare_type_var = Type.compare_type_var
-  let to_string = Type.pp_type_var
-  let pp = Type.pp_type_var
+  let to_string = Type.Show_type_var.show
+  (* let pp = Type.pp_type_var *)
   let sexp_of_t n =
     let open Type in
     let open Sexplib in
@@ -80,14 +81,15 @@ end
   Debugging
  ********************************************************************)
 let show_type_var { Type.type_var_id=name ; Type.type_var_kind=kind; _} =
-  Id.show_id name ^ " : " ^ Kind.show_kind kind
+  Id.show_id name ^ " : " ^ Kind.Show_kind.show kind
 
 let rec show_tp =
-  let open Type in function
+  let open Type in
+  function
     | Type.TVar tvar -> show_type_var tvar
-    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Kind.show_kind tcon.type_con_kind
+    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Kind.Show_kind.show tcon.type_con_kind
     | TApp(tp,args)  -> show_tp tp ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">"
-    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Kind.show_kind syn.type_syn_kind
+    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Kind.Show_kind.show syn.type_syn_kind
                              ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">" ^ "[" ^ show_tp body ^ "])"
     | _ -> "?"
 
@@ -179,7 +181,7 @@ let sub_is_null : sub -> bool = TVMap.is_empty
 let sub_new (sub : (t * tau) list) : sub =
   Failure.assertion ("TypeVar.sub_new.KindMisMatch: " ^ (string_of_int @@ List.length sub)
                      ^ String.concat (List.map ~f:(fun (x,t) -> "(" ^ show_type_var x ^ " |-> " ^ show_tp t ^ ")") sub))
-    (List.for_all ~f:(fun (x,t) -> Kind.equal_kind (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
+    (List.for_all ~f:(fun (x,t) -> Kind.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
     Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 let sub_range : sub -> tau list = TVMap.data
@@ -197,10 +199,10 @@ let sub_find tvar sub : tau = match sub_lookup tvar sub with
   | None -> Type.TVar tvar
   | Some tau ->
       Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
-                         ^ Type.show_type_var tvar ^ ":"
-                         ^ Kind.show_kind (TypeKind.get_kind_type_var tvar) ^ ","
-                         ^ "?" ^ ":" ^ Kind.show_kind (TypeKind.get_kind_typ tau))
-        (Kind.equal_kind (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
+                         ^ Type.Show_type_var.show tvar ^ ":"
+                         ^ Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                         ^ "?" ^ ":" ^ Kind.Show_kind.show (TypeKind.get_kind_typ tau))
+        (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
 
 
@@ -331,7 +333,7 @@ let sub_single tvar (tau:tau) : sub =
    * by the compiler. *)
   Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar)
     (not (TVSet.mem (ftv (Type tau)) tvar)) @@
-  Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.equal_kind (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
+  Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
   Map.singleton tvar tau
 
 let sub_find tvar sub : tau =
@@ -339,9 +341,9 @@ let sub_find tvar sub : tau =
   | None -> Type.TVar tvar
   | Some tau -> Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
                                    ^ show_type_var tvar ^ ":"
-                                   ^ Kind.show_kind (TypeKind.get_kind_type_var tvar) ^ ","
-                                   ^ "?" ^ ":" ^ Kind.show_kind (TypeKind.get_kind_typ tau))
-                  (Kind.equal_kind (TypeKind.get_kind_type_var tvar)
+                                   ^ Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                                   ^ "?" ^ ":" ^ Kind.Show_kind.show (TypeKind.get_kind_typ tau))
+                  (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar)
                      (TypeKind.get_kind_typ tau)) tau
 
 

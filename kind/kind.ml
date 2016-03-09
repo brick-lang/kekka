@@ -11,14 +11,49 @@ open Name
   
 (** Kind constant *)
 type kind_con = name
-  [@@deriving show,eq]
   
+implicit
+module Eq_kind_con = struct
+  type t = kind_con
+  let equal x y = Name.Eq_name.equal x y
+end
+
+implicit
+module Show_kind_con = struct
+  type t = kind_con
+  let show kc = Name.show_name kc
+end
+
 (** Kinds *)
 type kind =
   | KCon of kind_con      (* kind constants "*", "->","!", "H", "P" *)
   | KApp of kind * kind   (* Application (only allowed for functions as yet) *)
-  [@@deriving show,eq]
-  
+
+implicit
+module Eq_kind = struct
+  type t = kind
+  let equal x y =
+    let rec equal' x y = match x with
+    | KCon kc1 -> (match y with
+        | KCon kc2 -> Eq_kind_con.equal kc1 kc2
+        | _ -> false)
+    | KApp (k1,k2) -> (match y with
+        | KApp (k'1, k'2) -> (equal' k1 k'1) &&
+                             (equal' k2 k'2)
+        | _ -> false)
+    in equal' x y
+end
+
+implicit
+module Show_kind = struct
+  type t = kind
+  let show k =
+    let rec show' = function
+      | KCon kc -> Printf.sprintf "KindCon %s" (Show_kind_con.show kc)
+      | KApp (k1,k2) -> Printf.sprintf "KindApp (%s,%s)" (show' k1) (show' k2)
+    in show' k
+end
+
 let sexp_of_kind kind = 
   let open Sexplib in
   let ss = sexp_of_string in
@@ -44,8 +79,17 @@ type flavour =
   | Bound
   | Skolem
   | Meta
-  [@@deriving show]
-  
+
+implicit
+module Show_flavour = struct
+  type t = flavour
+  let show = function
+    | Bound  -> "Bound"
+    | Skolem -> "Skolem"
+    | Meta   -> "Meta"
+end  
+
+
 let sexp_of_flavour = function
   | Bound  -> Sexp.Atom "Bound"
   | Skolem -> Sexp.Atom "Skolem"
@@ -77,7 +121,8 @@ let kind_heap   : kind = KCon Name_prim.kind_heap
 let kind_fun k1 k2 : kind = KApp(KApp(kind_arrow, k1), k2)
 				
 let kind_arrow_n (n:int) : kind =
-  List.fold_right ~f:kind_fun ~init:(kind_fun kind_effect kind_star) @@ List.init n ~f:(fun _ -> kind_star)
+  List.fold_right ~f:kind_fun ~init:(kind_fun kind_effect kind_star) @@
+  List.init n ~f:(fun _ -> kind_star)
 										       
 let kind_extend : kind = kind_fun kind_label (kind_fun kind_effect kind_effect)
 					     

@@ -1,4 +1,5 @@
 open Core.Std;;
+open BasicClasses
 
 (* Types *)
 
@@ -28,3 +29,9 @@ let number i = i
 let show_id = string_of_int
 let sexp_of_id = sexp_of_int
 let id_of_sexp = int_of_sexp
+
+implicit
+module Show_id = struct
+  type t = id
+  let show i = string_of_int i
+end

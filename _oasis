@@ -21,14 +21,14 @@ Library common
 #  Install: false
 #  BuildDepends: common, type
 
-#Library kind
-#  Modules: Kind
-#  Path:    kind
-#  Install: false
-#  BuildDepends: common
+Library kind
+  Modules: Kind
+  Path:    kind
+  Install: false
+  BuildDepends: common
 
-#Library type
-#  Modules: Type, TypeKind, TypeVar
-#  Path:    type
-#  Install: false
-#  BuildDepends: kind
+Library type
+  Modules: Type, TypeKind, TypeVar
+  Path:    type
+  Install: false
+  BuildDepends: kind

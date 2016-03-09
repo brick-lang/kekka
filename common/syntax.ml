@@ -16,15 +16,9 @@ implicit
 module Eq_target = struct
   type t = target
   let equal x y = match x with
-    | CS -> (match y with
-        | CS -> true
-        | _ -> false)
-    | JS -> (match y with
-        | JS -> true
-        | _ -> false)
-    | Default -> (match y with
-        | Default -> true
-        | _ -> false)
+    | CS -> (match y with CS -> true | _ -> false)
+    | JS -> (match y with JS -> true | _ -> false)
+    | Default -> (match y with Default -> true | _ -> false)
 end
 
 implicit 
@@ -32,16 +26,9 @@ module Ord_target = struct
   type t = target
   module Eq = Eq_target
   let compare x y = match x with
-    | CS -> (match y with
-        | CS -> 0
-        | _ -> 1)
-    | JS -> (match y with
-        | CS -> -1
-        | JS -> 0
-        | Default -> 1)
-    | Default -> (match y with
-        | Default -> 0
-        | _ -> -1)
+    | CS -> (match y with CS -> 0 | _ -> -1)
+    | JS -> (match y with CS -> 1 | JS -> 0 | Default -> -1)
+    | Default -> (match y with Default -> 0 | _ -> 1)
 end
   
 implicit 
@@ -69,12 +56,8 @@ implicit
 module Eq_visibility = struct
   type t = visibility
   let equal x y = match x with
-    | Public -> (match y with
-        | Public -> true
-        | Private -> false)
-    | Private -> (match y with
-        | Public -> false
-        | Private -> true)
+    | Public  -> (match y with Public -> true | Private -> false)
+    | Private -> (match y with Public -> false | Private -> true)
 end
 
 implicit 
@@ -82,12 +65,8 @@ module Ord_visibility = struct
   type t = visibility
   module Eq = Eq_visibility
   let equal x y = match x with
-    | Public -> (match y with
-        | Public -> 0
-        | Private -> 1)
-    | Private -> (match y with
-        | Public -> -1
-        | Private -> 0)
+    | Public  -> (match y with Public -> 0 | Private -> -1)
+    | Private -> (match y with Public -> 1 | Private -> 0)
 end
 
 implicit 
@@ -116,15 +95,9 @@ implicit
 module Eq_data_kind = struct
   type t = data_kind
   let equal x y = match x with
-    | Inductive -> (match y with
-        | Inductive -> true
-        | _ -> false)
-    | CoInductive -> (match y with
-        | CoInductive -> true
-        | _ -> false)
-    | Retractive -> (match y with
-        | Retractive -> true
-        | _ -> false)
+    | Inductive   -> (match y with Inductive   -> true | _ -> false)
+    | CoInductive -> (match y with CoInductive -> true | _ -> false)
+    | Retractive  -> (match y with Retractive  -> true | _ -> false)
       
 end
   
@@ -150,15 +123,9 @@ implicit
 module Eq_def_sort = struct
   type t = def_sort
   let equal x y = match x with
-    | DefFun -> (match y with
-        | DefFun -> true
-        | _ -> false)
-    | DefVal -> (match y with
-        | DefVal -> true
-        | _ -> false)
-    | DefVar -> (match y with
-        | DefVar -> true
-        | _ -> false)
+    | DefFun -> (match y with DefFun -> true | _ -> false)
+    | DefVal -> (match y with DefVal -> true | _ -> false)
+    | DefVar -> (match y with DefVar -> true | _ -> false)
 end
 
 implicit 
@@ -166,16 +133,9 @@ module Ord_def_sort = struct
   type t = def_sort
   module Eq = Eq_def_sort
   let compare x y = match x with
-    | DefFun -> (match y with
-        | DefFun -> 0
-        | _ -> 1)
-    | DefVal -> (match y with
-        | DefFun -> -1
-        | DefVal -> 0
-        | DefVar -> 1)
-    | DefVar -> (match y with
-        | DefVar -> 0
-        | _ -> -1)
+    | DefFun -> (match y with DefFun -> 0 | _ -> -1)
+    | DefVal -> (match y with DefFun -> 1 | DefVal -> 0 | DefVar -> -1)
+    | DefVar -> (match y with DefVar -> 0 | _ -> 1)
 end
 
 implicit
@@ -200,15 +160,9 @@ implicit
 module Eq_assoc = struct
   type t = assoc
   let equal x y = match x with
-    | AssocNone -> (match y with
-        | AssocNone -> true
-        | _ -> false)
-    | AssocRight -> (match y with
-        | AssocRight -> true
-        | _ -> false)
-    | AssocLeft -> (match y with
-        | AssocLeft -> true
-        | _ -> false)
+    | AssocNone  -> (match y with AssocNone  -> true | _ -> false)
+    | AssocRight -> (match y with AssocRight -> true | _ -> false)
+    | AssocLeft  -> (match y with AssocLeft  -> true | _ -> false)
 end
 
 implicit

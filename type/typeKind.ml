@@ -1,4 +1,7 @@
 
+open BasicClasses
+open Kind
+
 (*********************************
   Get the kind of a type
  *********************************)
@@ -8,6 +11,18 @@
  * introduce _more_ complexity to the already-weird module layout. So instead,
  * we're going to continue ppx_deriving's convention of prefixes and then types.
  * a la get_kind_kind. *)
+
+module type HasKind = sig
+  type t
+  val get_kind : t -> kind
+end
+
+
+implicit
+module HasKind_kind = struct
+  type t = kind
+  let get_kind k = k
+end
 
 let get_kind_kind k = k
 let get_kind_type_var { Type.type_var_kind = k; _ } = k
@@ -23,7 +38,7 @@ let rec get_kind_typ =
     match (l,k) with
     | ([],_) -> k
     | ((_::rest),KApp(KApp(arr,k1),k2)) -> kind_apply rest k2
-    | (_,_) -> Failure.failure @@ "TypeKind.kind_apply: illegal kind in application? " ^ show_kind k
+    | (_,_) -> Failure.failure @@ "TypeKind.kind_apply: illegal kind in application? " ^ show k
   in
   let open Type in function
     | TForall(_,_,tp) -> get_kind_typ tp
@@ -35,5 +50,5 @@ let rec get_kind_typ =
     | TApp(tp,args)   -> begin
         match collect [] (get_kind_typ tp) with
         | (kres::_) -> kres
-        | _ -> Failure.failure @@ "TypeKind: illegal kind in type application? " ^ show_kind (get_kind_typ tp)
+        | _ -> Failure.failure @@ "TypeKind: illegal kind in type application? " ^ show (get_kind_typ tp)
       end
