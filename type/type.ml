@@ -130,6 +130,7 @@ and data_info = {
   data_info_constrs : con_info list;
   (* data_info_range   : range; *)         (** location information *)
   data_info_is_rec  : bool;                (** recursive?  *)
+  data_info_is_open : bool;
   data_info_doc     : string
 }
 
@@ -290,8 +291,8 @@ let show_con_info (info:con_info) = show_name info.con_info_name
 
 let pp_con_info fmt info = Format.pp_print_string fmt @@ show_con_info info
 
-let rec max_synonym_rank (tp:typ) : int =
-  let max_synonym_ranks  : typ list -> int =
+let rec max_synonym_rank (tp:typ) : synonym_rank =
+  let max_synonym_ranks : typ list -> int =
     List.fold_right ~f:(fun a b -> max (max_synonym_rank a) b) ~init:0
   in
   match tp with
@@ -339,15 +340,14 @@ let compare_type_syn ts1 ts2 = Name.compare_name ts1.type_syn_name ts2.type_syn_
 (** Split type into a list of universally quantified
  *  type variables, a list of predicates, and a rho-type.
  * $\tau^K \rightarrow ([\forall \alpha \beta \gamma \ldots], [pred], \rho$) *)
-let rec split_pred_type =
+let rec split_pred_type (tp:typ) : (type_var list * pred list * rho) =
   (* We must split a synonym if its expansion
    * includes further quantifiers or predicates *)
   let rec must_split = function
     | TForall _    -> true
     | TSyn(_,_,tp) -> must_split tp
     | _            -> false
-  in
-  function
+  in match tp with
   | TForall(vars,preds,rho)         -> (vars, preds, rho)
   | TSyn(_,_,tp) when must_split tp -> split_pred_type tp
   | tp                              -> ([], [], tp)
@@ -455,7 +455,7 @@ let rec is_Fun tp =
    Primitive types
  ****************************************************)
 
-let tcon_int = { type_con_name = name_tp_int; type_con_kind = kind_star}
+let tcon_int = { type_con_name = name_tp_int; type_con_kind = kind_star }
 
 (** Type of integers (@Int@) *)
 let type_int : tau = TCon(tcon_int)
@@ -475,7 +475,6 @@ let type_char : tau = TCon(tcon_char)
 let is_type_char = function
   | TCon(tc) -> tc = tcon_char
   | _        -> false
-;;
 
 let tcon_string = { type_con_name = name_tp_string; type_con_kind = kind_star};;
 
@@ -581,7 +580,7 @@ let order_effect (tp : tau) : tau =
   List.fold_right ~f:effect_extend ~init:tl ls
 
 (** A type in canonical form has no type synonyms and expanded effect types *)
-let rec canonical_form = function
+let rec canonical_form : typ -> typ = function
   | TSyn(syn,args,t)      -> canonical_form t (* You can see how here, we abandon the synonym for the raw type *)
   | TForall(vars,preds,t) -> TForall(vars, preds, canonical_form t)
   | TApp(t,ts)            -> TApp(canonical_form t, List.map ~f:canonical_form ts)
@@ -592,7 +591,7 @@ let rec canonical_form = function
 
 
 (** A type in minimal form is canonical_form but also has no named function arguments *)
-let minimal_form = function
+let minimal_form : typ -> typ = function
   | TSyn(syn,args,t)      -> canonical_form t
   | TForall(vars,preds,t) -> TForall(vars,preds,canonical_form t)
   | TApp(t,ts)            -> TApp(canonical_form t, List.map ~f:canonical_form ts)
@@ -630,7 +629,6 @@ let is_type_bool : tau -> bool = function
   | _       -> false
 
 let tcon_unit : type_con = { type_con_name = name_tp_unit; type_con_kind = kind_star }
-
 let type_unit : tau  = TCon tcon_unit
 
 let is_type_unit : tau -> bool = function
@@ -667,13 +665,18 @@ let tcon_optional : type_con = {
 
 let type_optional : tau = TCon tcon_optional
 
-let is_optional (tp : tau) : bool =
+let is_optional (tp : typ) : bool =
   match expand_syn tp with
   | TApp(TCon tc,[t]) -> tc = tcon_optional
   | _ -> false
 
-let make_optional (tp : tau) : tau =
+let make_optional (tp : typ) : typ =
   TApp(type_optional, [tp])
+
+let unoptional (tp : typ) : typ =
+  match expand_syn tp with
+  | TApp((TCon tc),[t]) when tc = tcon_optional -> t
+  | _ -> tp
 
 (** Remove type synonym indirections *)
 let rec pruneSyn : rho -> rho = function
@@ -685,14 +688,31 @@ let rec pruneSyn : rho -> rho = function
 (*****************************************************
   Conversion between types
  *****************************************************)
-module type ISTYPE = sig
+module type IsType = sig
   type t
+  (* Trivial conversion to a kind quantified type scheme *)
   val to_type : t -> typ
 end
 
+let to_type {I:IsType} tp = I.to_type tp
 
-(* TODO: somehow integrate OCaml's functors into this *)
+implicit
+module IsType_typ : IsType with type t = typ = struct
+  type t = typ
+  let to_type tp = tp
+end
 
+implicit
+module IsType_type_var : IsType with type t = type_var = struct
+  type t = type_var
+  let to_type v = TVar v
+end
+
+implicit
+module IsType_type_con : IsType with type t = type_con = struct
+  type t = type_con
+  let to_type con = TCon con
+end 
 
 (******************************************************
   Equality between types
@@ -722,6 +742,17 @@ and match_pred p1 p2 =
 and match_preds ps1 ps2 =
   List.fold2_exn ps1 ps2 ~init:true ~f:(fun i l r -> i && (match_pred l r))
 
+implicit
+module Eq_typ : Eq with type t = typ = struct
+  type t = typ
+  let equal = match_type
+end
+
+implicit
+module Eq_pred : Eq with type t = pred = struct
+  type t = pred
+  let equal = match_pred
+end
 
 let sexp_of_flavour = function
   | Bound  -> Sexp.Atom "Bound"

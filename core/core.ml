@@ -1,2 +1,2 @@
-(*type tname = Type.typ * Name.name*)
+type tname = Type.typ * Name.name
 

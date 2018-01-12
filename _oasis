@@ -3,11 +3,10 @@ Name:        lambdak
 Version:     0.1
 Synopsis:    The lambda-k type system
 Authors:     Katherine Whitlock
-License:     BSD-3-clause
+License:     Apache
 Plugins:     DevFiles (0.4)
 BuildTools:  ocamlbuild
-BuildDepends: core, threads, str, res, cfg,
-              bytes
+BuildDepends: core, threads, str, bytes
 
 Library common
   Modules: Name, Name_prim, Syntax,
@@ -28,7 +27,7 @@ Library kind
   BuildDepends: common
 
 Library type
-  Modules: Type, TypeKind, TypeVar
+  Modules: Type, TypeKind, TypeVar, Unify
   Path:    type
   Install: false
   BuildDepends: kind

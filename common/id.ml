@@ -1,10 +1,11 @@
-open Core.Std;;
+open Core.Std
 open BasicClasses
 
 (* Types *)
 
 (** Identifiers are unique compiler generated identities *)
 type id = int
+type t = id
 
 (** A list of identifiers *)
 type ids = id list
@@ -24,7 +25,7 @@ let generate base_name = create
 (* dummy identifier *)
 let nil : id = 0
 
-let number i = i
+let number (i:id) : int = i
 
 let show_id = string_of_int
 let sexp_of_id = sexp_of_int
