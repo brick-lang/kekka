@@ -21,9 +21,9 @@ let run_unique_with (ids:Id.t list) (uniq:'a unique) : 'a =
   let seed = (List.fold_right ~f:max ~init:0 (List.map ~f:Id.number ids)) + 1 in
   fst @@ run_unique seed uniq
 
-let lift_unique {H:HasUnique} (uniq:'a unique) : 'a H.t =
-  unique >>= fun u ->
-  let (x,u') = run_unique u uniq in
-  set_unique u' >>
-  return x
-    
+(* let lift_unique {H:HasUnique} (uniq:'a unique) : 'a H.t = *)
+(*   unique >>= fun u -> *)
+(*   let (x,u') = run_unique u uniq in *)
+(*   set_unique u' >> *)
+(*   return x *)
+

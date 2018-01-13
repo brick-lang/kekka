@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Util
 open Type
 open TypeVar
@@ -43,7 +43,7 @@ let rec overlaps (free:TVSet.t) (tp1:typ) (tp2:typ) : unit unify =
       if (List.length fo1 <> List.length fo2) then
         NoMatch     (* one has more fixed arguments than the other can ever get *)
       else ()
-      
+
 (** Does a type have the given named arguments *)
 and match_named (tp:typ) (n:int) (named : name list) : unit unify =
   let rho1 = instantiate tp in

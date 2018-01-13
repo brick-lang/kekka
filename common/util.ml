@@ -1,5 +1,5 @@
-include Core.Std.Fn
-	
+include Core.Fn
+
 let (<.>) f g x = f @@ g x
 let (<.:>) f g x y = f @@ g x y
 let until p f =
@@ -7,8 +7,8 @@ let until p f =
     | x when p x -> x
     | x -> go @@ f x
   in go
-  
-  
+
+
 (* Implementation of arrows for functions *)
 let (<<<) f g x = f @@ g x
 let (>>>) f g x = g @@ f x
@@ -22,9 +22,9 @@ let (<<^) a f = a <<< arr f
 let (^<<) a f = arr f <<< a
 let (^>>) a f = arr f >>> a
 let (>>^) a f = a >>> arr f
-		      
+
 module List = struct
-  include Core.Std.List
+  include Core.List
   let guard = function
     | true -> return ()
     | false -> []

@@ -3,7 +3,7 @@ open BasicClasses
 open Kind
 
 (*********************************
-  Get the kind of a type
+   Get the kind of a type
  *********************************)
 
 (* Soooo, in the original source, this is done with a HasKind typeclass. 
@@ -18,7 +18,7 @@ module type HasKind = sig
 end
 
 
-implicit
+(* implicit *)
 module HasKind_kind = struct
   type t = kind
   let get_kind k = k
@@ -38,7 +38,7 @@ let rec get_kind_typ =
     match (l,k) with
     | ([],_) -> k
     | ((_::rest),KApp(KApp(arr,k1),k2)) -> kind_apply rest k2
-    | (_,_) -> Failure.failure @@ "TypeKind.kind_apply: illegal kind in application? " ^ show k
+    | (_,_) -> Failure.failure @@ "TypeKind.kind_apply: illegal kind in application? " ^ Show_kind.show k
   in
   let open Type in function
     | TForall(_,_,tp) -> get_kind_typ tp
@@ -46,9 +46,9 @@ let rec get_kind_typ =
     | TVar v          -> get_kind_type_var v
     | TCon c          -> get_kind_type_con c
     | TSyn(syn,xs,tp) -> (*getKind tp (* this is wrong for partially applied type synonym arguments, see "kind/alias3" test *)*)
-	kind_apply xs (get_kind_type_syn syn)
+        kind_apply xs (get_kind_type_syn syn)
     | TApp(tp,args)   -> begin
         match collect [] (get_kind_typ tp) with
         | (kres::_) -> kres
-        | _ -> Failure.failure @@ "TypeKind: illegal kind in type application? " ^ show (get_kind_typ tp)
+        | _ -> Failure.failure @@ "TypeKind: illegal kind in type application? " ^ Show_kind.show (get_kind_typ tp)
       end

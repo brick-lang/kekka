@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open BasicClasses
 
 (* let implode = List.fold_right ~init: "" ~f:(fun c cs -> (Char.to_string c) ^ cs) *)
@@ -26,7 +26,7 @@ type name =  {
   hash_id     : int;
 }
 
-implicit 
+(* implicit *)
 module Eq_name = struct
   type t = name
   let equal x y =
@@ -34,7 +34,7 @@ module Eq_name = struct
     (x.hash_module = y.hash_module) &&
     (String.equal x.name_id y.name_id) &&
     (x.hash_id = y.hash_id)
-       
+
 end
 
 let sexp_of_name n =

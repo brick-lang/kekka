@@ -1,5 +1,5 @@
 open TypeVar
-    
+
 type tname = Type.typ * Name.name
 type evidence = {
   ev_name : tname;
@@ -7,7 +7,7 @@ type evidence = {
   (* ; ev_range : range *)
 }
 
-implicit
+(* implicit *)
 module HasTypeVar_evidence : HasTypeVar with type t = evidence = struct
   type t = evidence
   let substitute sub ({ev_pred = ep; _} as ev) =
@@ -16,7 +16,7 @@ module HasTypeVar_evidence : HasTypeVar with type t = evidence = struct
   let btv {ev_pred = ep; _} = HasTypeVar_pred_rec.btv ep
 end
 
-implicit
+(* implicit *)
 module Show_evidence : Show with type t = evidence = struct
   type t = evidence
   let show {ev_pred = ep; _} = Show_pred.show ep

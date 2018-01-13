@@ -4,7 +4,7 @@
  * which is licensed under the APLv2.0
  * Copyright 2012 Microsoft Corporation, Daan Leijen
  * Copyright 2015 Katherine Whitlock
- *)
+*)
 
 open Name
 open Name_prim
@@ -161,7 +161,7 @@ and syn_info = {
   doc    : string;
 }
 
-open Core.Std
+open Core
 
 module rec Show_typ : Show with type t = typ = struct
   type t = typ
@@ -182,7 +182,7 @@ and Show_pred : Show with type t = pred = struct
   let show = function
     | PredSub (t1,t2) -> Printf.sprintf "PredSub (%s,%s)" (Show_typ.show t1) (Show_typ.show t2)
     | PredIFace (n,ts) ->
-        Printf.sprintf "PredIFace (%s,%s)" (show n) (List.to_string ts ~f:Show_typ.show)
+        Printf.sprintf "PredIFace (%s,%s)" (Name.show_name n) (List.to_string ts ~f:Show_typ.show)
 end
 
 and Show_scheme : Show with type t = scheme = struct
@@ -219,7 +219,7 @@ end
 and Show_type_var : Show with type t = type_var = struct
   type t = type_var
   let show s = Printf.sprintf "{ type_var_id : %s; type_var_kind : %s; type_var_flavour : %s }"
-                 (show s.type_var_id) (show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
+                 (Show_id.show s.type_var_id) (Show_kind.show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
 end
 
 and Show_flavour : Show with type t = flavour = struct
@@ -233,13 +233,13 @@ end
 and Show_type_con : Show with type t = type_con = struct
   type t = type_con
   let show s = Printf.sprintf "{ type_con_name : %s; type_con_kind : %s }"
-                 (show s.type_con_name) (show s.type_con_kind)
+                 (Name.show_name s.type_con_name) (Show_kind.show s.type_con_kind)
 end
 
 and Show_type_syn : Show with type t = type_syn = struct
   type t = type_syn
   let show s = Printf.sprintf "{ type_syn_name : %s; type_syn_kind : %s; type_syn_rank : %s; type_syn_info : %s }"
-                 (show s.type_syn_name) (show s.type_syn_kind)
+                 (Name.show_name s.type_syn_name) (Show_kind.show s.type_syn_kind)
                  (string_of_int s.type_syn_rank)
                  (match s.type_syn_info with None -> "None"
                                            | Some i -> "("^ Show_syn_info.show i ^")")
@@ -248,13 +248,13 @@ end
 and Show_syn_info : Show with type t = syn_info = struct
   type t = syn_info
   let show s = Printf.sprintf "{ name : %s; kind : %s; params : %s; typ : %s; rank : %s; doc : %s }"
-                 (show s.name) (show s.kind)
+                 (Name.show_name s.name) (Show_kind.show s.kind)
                  (* (List.to_string s.params ~f:(fun e -> show e)) *) "[params]"
                  (Show_typ.show s.typ) (string_of_int s.rank)
                  s.doc
 end
 
-implicit
+(* implicit *)
 module Eq_flavour : Eq with type t = flavour = struct
   type t = flavour
   let equal x y = match x with
@@ -263,7 +263,7 @@ module Eq_flavour : Eq with type t = flavour = struct
     | Bound  -> (match y with Bound  -> true | _ -> false)
 end
 
-implicit
+(* implicit *)
 module Ord_flavour = struct
   type t = flavour
   module Eq = Eq_flavour
@@ -273,19 +273,19 @@ module Ord_flavour = struct
     | Bound  -> (match y with Bound -> 0 | _ -> 1)
 end
 
-open implicit Show_typ
-open implicit Show_pred
-open implicit Show_scheme
-open implicit Show_sigma
-open implicit Show_tau
-open implicit Show_rho
-open implicit Show_effect
-open implicit Show_infer_type
-open implicit Show_type_var
-open implicit Show_flavour
-open implicit Show_type_con
-open implicit Show_type_syn
-open implicit Show_syn_info
+(* open implicit Show_typ *)
+(* open implicit Show_pred *)
+(* open implicit Show_scheme *)
+(* open implicit Show_sigma *)
+(* open implicit Show_tau *)
+(* open implicit Show_rho *)
+(* open implicit Show_effect *)
+(* open implicit Show_infer_type *)
+(* open implicit Show_type_var *)
+(* open implicit Show_flavour *)
+(* open implicit Show_type_con *)
+(* open implicit Show_type_syn *)
+(* open implicit Show_syn_info *)
 
 let show_con_info (info:con_info) = show_name info.con_info_name
 
@@ -325,7 +325,7 @@ let is_skolem tv =
  *****************************************************)
 
 let eq_type_var tv1 tv2 = tv1.type_var_id = tv2.type_var_id
-let compare_type_var tv1 tv2 = Core.Std.Int.compare tv1.type_var_id tv2.type_var_id
+let compare_type_var tv1 tv2 = Core.Int.compare tv1.type_var_id tv2.type_var_id
 
 let eq_type_con tc1 tc2 = tc1.type_con_name = tc2.type_con_name
 let compare_type_con tc1 tc2 = Name.compare_name tc1.type_con_name tc2.type_con_name
@@ -531,17 +531,17 @@ and effect_extends (labels : tau list) (eff : tau) : tau =
 
 let effect_fixed (labels : tau list) : tau = effect_extends labels effect_empty
 
-let rec effect_extend_no_dup (label : tau) (eff : tau) : tau =
-  let (ls,_) = extract_effect_extend eff in
-  if List.is_empty ls then
-    let (els,_) = extract_effect_extend eff in
-    if List.mem els label
-    then eff
-    else TApp(TCon tcon_effect_extend,[label;eff])
-  else effect_extend_no_dups ls eff
+(* let rec effect_extend_no_dup (label : tau) (eff : tau) : tau = *)
+(*   let (ls,_) = extract_effect_extend eff in *)
+(*   if List.is_empty ls then *)
+(*     let (els,_) = extract_effect_extend eff in *)
+(*     if List.mem els label ~equal:Eq_typ.equal then *)
+(*       eff *)
+(*     else TApp(TCon tcon_effect_extend,[label;eff]) *)
+(*   else effect_extend_no_dups ls eff *)
 
-and effect_extend_no_dups (labels : tau list) (eff : tau) : tau =
-  List.fold_right ~f:effect_extend_no_dup ~init:eff labels
+(* and effect_extend_no_dups (labels : tau list) (eff : tau) : tau = *)
+(*   List.fold_right ~f:effect_extend_no_dup ~init:eff labels *)
 
 let rec shallow_extract_effect_extend : tau -> tau list * tau = function
   | TApp(TCon(tc),[l;e]) when tc.type_con_name = name_effect_extend ->
@@ -686,7 +686,7 @@ let rec pruneSyn : rho -> rho = function
 
 
 (*****************************************************
-  Conversion between types
+   Conversion between types
  *****************************************************)
 module type IsType = sig
   type t
@@ -694,28 +694,28 @@ module type IsType = sig
   val to_type : t -> typ
 end
 
-let to_type {I:IsType} tp = I.to_type tp
+(* let to_type {I:IsType} tp = I.to_type tp *)
 
-implicit
+(* implicit *)
 module IsType_typ : IsType with type t = typ = struct
   type t = typ
   let to_type tp = tp
 end
 
-implicit
+(* implicit *)
 module IsType_type_var : IsType with type t = type_var = struct
   type t = type_var
   let to_type v = TVar v
 end
 
-implicit
+(* implicit *)
 module IsType_type_con : IsType with type t = type_con = struct
   type t = type_con
   let to_type con = TCon con
 end 
 
 (******************************************************
-  Equality between types
+   Equality between types
  ******************************************************)
 let rec match_type tp1 tp2 =
   match (expand_syn tp1, expand_syn tp2) with
@@ -742,13 +742,13 @@ and match_pred p1 p2 =
 and match_preds ps1 ps2 =
   List.fold2_exn ps1 ps2 ~init:true ~f:(fun i l r -> i && (match_pred l r))
 
-implicit
+(* implicit *)
 module Eq_typ : Eq with type t = typ = struct
   type t = typ
   let equal = match_type
 end
 
-implicit
+(* implicit *)
 module Eq_pred : Eq with type t = pred = struct
   type t = pred
   let equal = match_pred
