@@ -39,7 +39,7 @@ end
 include T
 
 module C = Comparable.Make(T)
-include C
+(* include C *)
 
 module TVSet = Core.Set.Make_using_comparator(struct
     include T
@@ -167,9 +167,10 @@ module type HasTypeVar = sig
   val btv : t -> TVSet.t
 end
 
-(* let substitute {H:HasTypeVar} sub s = H.substitute sub s *)
-(* let ftv {H:HasTypeVar} s = H.ftv s *)
-(* let btv {H:HasTypeVar} s = H.btv s *)
+module type HasTypeVarEx = sig
+  include HasTypeVar
+  val (|->) : sub -> t -> t
+end
 
 (* Entities that contain type variables that can be put in a particular order *)
 module type HasOrderedTypeVar = sig
@@ -188,7 +189,7 @@ let sub_new (sub : (t * tau) list) : sub =
   Failure.assertion ("TypeVar.sub_new.KindMisMatch: " ^ (string_of_int @@ List.length sub)
                      ^ String.concat (List.map ~f:(fun (x,t) -> "(" ^ show_type_var x ^ " |-> " ^ show_tp t ^ ")") sub))
     (List.for_all ~f:(fun (x,t) -> Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
-    Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
+    C.Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 (** This is the set of all types in our current environment.
  * In type theory, it is denoted by $\Gamma$ *)
@@ -210,11 +211,12 @@ let sub_find tvar sub : tau = match sub_lookup tvar sub with
         (Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
 
-module HasTypeVar_list (H:HasTypeVar) : HasTypeVar with type t = H.t list = struct
+module HasTypeVar_list (H:HasTypeVar) : HasTypeVarEx with type t = H.t list = struct
   type t = H.t list
   let substitute sub xs = List.map xs ~f:(fun x -> H.substitute sub x)
   let ftv xs = tvs_unions (List.map xs ~f:H.ftv)
   let btv xs = tvs_unions (List.map xs ~f:H.btv)
+  let (|->) sub x = if sub_is_null sub then x else substitute sub x
 end
 
 module HasOrderedTypeVar_list (H:HasOrderedTypeVar) : HasOrderedTypeVar with type t = H.t list = struct
@@ -222,99 +224,87 @@ module HasOrderedTypeVar_list (H:HasOrderedTypeVar) : HasOrderedTypeVar with typ
   let odftv xs = List.concat_map ~f:H.odftv xs
 end   
 
-module rec HasTypeVar_pred_rec : HasTypeVar with type t = pred = struct
+module rec HasTypeVar_pred : HasTypeVarEx with type t = pred = struct
   type t = pred
-  open HasTypeVar_typ_rec
+
   let substitute subst pred = match pred with
-    | PredSub (sub, super) -> PredSub (substitute subst sub, substitute subst super)
-    | PredIFace (name, args) ->
-        let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-        PredIFace (name, HasTypeVar_list_typ.substitute subst args)
+    | PredSub (sub, super) -> PredSub (HasTypeVar_typ.substitute subst sub,
+                                       HasTypeVar_typ.substitute subst super)
+    | PredIFace (name, args) -> PredIFace (name, HasTypeVar_list_typ.substitute subst args)
+
   let ftv = function
-    | PredSub (sub, super) -> tvs_union (ftv sub) (ftv super)
-    | PredIFace (_, args) ->
-        let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-        HasTypeVar_list_typ.ftv args
+    | PredSub (sub, super) -> tvs_union (HasTypeVar_typ.ftv sub) (HasTypeVar_typ.ftv super)
+    | PredIFace (_, args) -> HasTypeVar_list_typ.ftv args
   let btv _ = tvs_empty
+  let (|->) sub x = if sub_is_null sub then x else substitute sub x
 end
 
-and HasTypeVar_typ_rec : HasTypeVar with type t = typ = struct
+and HasTypeVar_typ : HasTypeVarEx with type t = typ = struct
   type t = typ
-  let substitute sub t =
+  let substitute (sub:sub) (t:rho) =
     let rec substitute' sub t =
       match t with
       | TForall (vars,preds,tp) ->
           let sub' = sub_remove vars sub in
-          let module HasTypeVar_list_pred = HasTypeVar_list(HasTypeVar_pred_rec) in
           let (|->) sub x = if sub_is_null sub then x else HasTypeVar_list_pred.substitute sub x in
           TForall (vars, (sub' |-> preds), (if sub_is_null sub' then tp else substitute' sub' tp))
 
-      | Type.TFun (args,effect,result) ->
+      | TFun (args,effect,result) ->
           let mapped_args = List.map ~f:(fun (name,tp) -> (name, substitute' sub tp)) args in
           Type.TFun (mapped_args, (substitute' sub effect), (substitute' sub result))
-      | Type.TCon _ -> t
-      | Type.TVar tvar -> sub_find tvar sub
-      | Type.TApp (tp,arg) ->
-          let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
+      | TCon _ -> t
+      | TVar tvar -> sub_find tvar sub
+      | TApp (tp,arg) ->
           Type.TApp (substitute' sub tp, HasTypeVar_list_typ.substitute sub arg)
-      | Type.TSyn (syn,xs,tp) ->
-          let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-          Type.TSyn (syn, HasTypeVar_list_typ.substitute sub xs, substitute' sub tp)
+      | TSyn (syn,xs,tp) ->
+          TSyn (syn, HasTypeVar_list_typ.substitute sub xs, substitute' sub tp)
     in substitute' sub t
 
   let ftv tp =
     let rec ftv' = function
       | TForall (vars, preds, tp) ->
-          let module HasTypeVar_list_pred = HasTypeVar_list(HasTypeVar_pred_rec) in
           tvs_remove vars (tvs_union (HasTypeVar_list_pred.ftv preds) (ftv' tp))
       | TFun (args, effect, result) ->
           tvs_unions (ftv' effect :: ftv' result :: List.map ~f:(ftv' <.> snd) args)
       | TCon _ -> tvs_empty
       | TVar tvar -> tvs_single tvar
-      | TApp (tp, args) ->
-          let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-          tvs_union (ftv' tp) (HasTypeVar_list_typ.ftv args)
-      | TSyn (syn, xs, tp) ->
-          let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-          tvs_union (HasTypeVar_list_typ.ftv xs) (ftv' tp)
+      | TApp (tp, args) -> tvs_union (ftv' tp) (HasTypeVar_list_typ.ftv args)
+      | TSyn (syn, xs, tp) -> tvs_union (HasTypeVar_list_typ.ftv xs) (ftv' tp)
     in ftv' tp
 
   let btv tp =
     let rec btv' = function
-      | TForall (vars, preds, tp) ->
-          let module HasTypeVar_list_pred = HasTypeVar_list(HasTypeVar_pred_rec) in
-          tvs_remove vars (tvs_union (HasTypeVar_list_pred.ftv preds) (btv' tp))
-      | TFun (args, effect, result) ->
-          tvs_unions (btv' effect :: btv' result :: List.map ~f:(btv' <.> snd) args)
+      | TForall (vars, preds, tp) -> tvs_remove vars (tvs_union (HasTypeVar_list_pred.ftv preds) (btv' tp))
+      | TFun (args, effect, result) -> tvs_unions (btv' effect :: btv' result :: List.map ~f:(btv' <.> snd) args)
       | TSyn (_,_,tp) -> btv' tp
-      | TApp (tp, args) ->
-          let module HasTypeVar_list_typ = HasTypeVar_list(HasTypeVar_typ_rec) in
-          tvs_union (btv' tp) (HasTypeVar_list_typ.btv args)
+      | TApp (tp, args) -> tvs_union (btv' tp) (HasTypeVar_list_typ.btv args)
       | _ -> tvs_empty
     in btv' tp
+
+  let (|->) sub x = if sub_is_null sub then x else substitute sub x
 end
 
-module HasTypeVar_typ = HasTypeVar_typ_rec
-module HasTypeVar_pred = HasTypeVar_pred_rec
+and HasTypeVar_list_typ : HasTypeVarEx with type t = typ list = HasTypeVar_list(HasTypeVar_typ)
+and HasTypeVar_list_pred : HasTypeVarEx with type t = pred list = HasTypeVar_list(HasTypeVar_pred)
 
-module rec HasOrderedTypeVar_typ_rec : HasOrderedTypeVar with type t = typ = struct
+module rec HasOrderedTypeVar_typ : HasOrderedTypeVar with type t = typ = struct
   type t = typ
   let odftv tp =
     let rec odftv' = function
       | TForall (vars, preds, tp) ->
-          let module HOTV_list_pred = HasOrderedTypeVar_list(HasOrderedTypeVar_pred_rec) in
+          let module HOTV_list_pred = HasOrderedTypeVar_list(HasOrderedTypeVar_pred) in
           List.filter ~f:(fun tv -> not (List.mem vars tv ~equal:Type.eq_type_var)) (odftv' tp @ HOTV_list_pred.odftv preds)
       | TFun (args, effect, result) ->
           List.concat_map ~f:odftv' ((List.map ~f:snd args) @ [effect; result])
       | TCon _ -> []
       | TVar tvar -> [tvar]
       | TApp (tp, args) ->
-          let module HOTV_list_typ = HasOrderedTypeVar_list(HasOrderedTypeVar_typ_rec) in
+          let module HOTV_list_typ = HasOrderedTypeVar_list(HasOrderedTypeVar_typ) in
           (odftv' tp) @ (HOTV_list_typ.odftv args)
       | TSyn (_, xs, tp) -> (odftv' tp) @ (List.concat_map ~f:odftv' xs)
     in odftv' tp
 end
-and HasOrderedTypeVar_pred_rec : HasOrderedTypeVar with type t = pred = struct
+and HasOrderedTypeVar_pred : HasOrderedTypeVar with type t = pred = struct
   type t = pred
   let odftv tp = assert false
 end 
@@ -348,10 +338,14 @@ let sub_single tvar (tau:tau) : sub =
    * by the compiler. *)
   Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (TVSet.mem (HasTypeVar_typ.ftv tau) tvar)) @@
   Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
-  Map.singleton tvar tau
+  C.Map.singleton tvar tau
 
 let sub_compose (sub1:sub) (sub2:sub) : sub =
   let open HasTypeVar_sub in
   TVMap.union sub1 (sub1 |-> sub2)
 
 let (@@@) sub1 sub2 = sub_compose sub1 sub2
+
+let fresh_type_var kind (flavour : flavour) =
+  let id = Unique.unique_id (match flavour with Meta -> "_v" | Skolem -> "$v" | Bound -> "v") in
+  { type_var_id = id; type_var_kind = kind; type_var_flavour = flavour }

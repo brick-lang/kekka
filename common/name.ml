@@ -114,7 +114,8 @@ let show_name { name_module = m; name_id = n; _ } =
 let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show_name name) ^ "\"")
 
 let new_qualified m n =
-  let short s = String.of_char_list @@ List.take (String.to_list @@ String.lowercase s) 4 in
+  let string_take i s = s |> String.to_list |> Util.flip (List.take) i |> String.of_char_list in
+  let short s = string_take 4 (String.lowercase s) in
   let hash s = String.fold ~init:0 ~f:(fun h c -> h*256 + (Char.to_int c)) (short s) in
   { name_module = m; hash_module = (hash m); name_id = n; hash_id = (hash n)}
 

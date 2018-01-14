@@ -1,29 +1,12 @@
-open Id
-(* module type HasUnique = sig *)
-(*   type 'a m *)
-(*   val update_unique: (int -> int) -> int m *)
-(*   val set_unique: int -> unit m *)
-(*   val unique: int m *)
-(*   val uniques: int -> (int list) m *)
-(*   val unique_id : string -> id m *)
-(*   val unique_ids : string -> int -> id list m *)
-(*   val unique_names : string -> name m *)
-(* end *)
+(* Instead of using a monad, I'll be using OCaml's global state/ref system. Like a hack. *)
+let counter =
+  let count = ref (-1) in
+  fun () -> incr count; !count
 
-type 'a unique = int -> ('a * int)
+open Core
 
-(** Run a unique monad, starting with an initial unique seed *)
-let run_unique (i:int) (u:'a unique) : ('a * int) = u i
-
-(** Run a unique monad that will generate unique identifiers
-  * with respect to a given set of identifiers *)
-let run_unique_with (ids:Id.t list) (uniq:'a unique) : 'a =
-  let seed = (List.fold_right ~f:max ~init:0 (List.map ~f:Id.number ids)) + 1 in
-  fst @@ run_unique seed uniq
-
-(* let lift_unique {H:HasUnique} (uniq:'a unique) : 'a H.t = *)
-(*   unique >>= fun u -> *)
-(*   let (x,u') = run_unique u uniq in *)
-(*   set_unique u' >> *)
-(*   return x *)
-
+let unique = counter
+let uniques n = List.init n ~f:Util.id |> List.map ~f:(fun _ -> unique ())
+let unique_id basename = Id.generate basename (unique ())
+let unique_ids basename n = List.map ~f:(Id.generate basename) (uniques n)
+let unique_name basename = Name.new_hidden_name (basename ^ "." ^ Int.to_string (unique ()))

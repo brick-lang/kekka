@@ -25,16 +25,22 @@ let name_op_expr = Name.create ".opexpr"
 let name_if = Name.create "if"
 let name_case = Name.create "case"
 let name_unit = Name.create "()"
-
-(* let pred_heap_div : Name.name = Name.prelude_name "hdiv" *)
-
-
+let name_pred_heap_div = prelude_name "hdiv"
+let name_return = prelude_name ".return"
+let name_trace = prelude_name "trace"
+let name_log = prelude_name "log"
+let name_effect_open = Name.create ".open"
+                   
 (* Primitive constructors *)
-
+let name_true = prelude_name "True"
+let name_false = prelude_name "False"
+                   
+let name_just = prelude_name "Just"
+let name_nothing = prelude_name "Nothing"
+                     
 let name_optional = prelude_name "Optional"
 let name_optional_none = prelude_name "None"
 let name_tp_optional = prelude_name "optional"
-
 
 (* Lists *)
 let name_null = prelude_name "Nil"

@@ -10,7 +10,7 @@ BuildDepends: core, threads, str, bytes
 
 Library common
   Modules: Name, Name_prim, Syntax,
-           Failure, Id, Util
+           Failure, Id, Util, Unique
   Path:    common
   Install: false
 
@@ -27,7 +27,8 @@ Library kind
   BuildDepends: common
 
 Library type
-  Modules: Type, TypeKind, TypeVar #, Unify
+  Modules: Type, TypeKind, TypeVar,
+           Heart, TypeOperations, Unify
   Path:    type
   Install: false
   BuildDepends: kind

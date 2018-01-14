@@ -89,9 +89,11 @@ and type_var = {
  * The flavour of a type variable. Types in a 'Type.assumption' ($\Gamma$) and
  * inferred types in "Core.core" are always of the 'Bound' flavour.
  * 'Meta' and 'Skolem' type variables only ever occur during type inference. *)
-and flavour = Meta
-            | Skolem
-            | Bound
+(* TODO: Figure out why this was redeclared from Kind.flavour? *)
+(* and flavour = Kind.flavour
+ *   | Meta 
+ *   | Skolem
+ *   | Bound *)
 
 (** Type constants have a name and a kind.
  *  Eg. $c^K$ *)
@@ -315,10 +317,9 @@ let is_bound tv =
 let is_meta tv =
   match tv.type_var_flavour with Meta -> true | _ -> false
 
-(** Is a type variable 'Skolem' (and thus unifiable) ? *)
+(** Is a type variable 'Skolem' (and thus not unifiable) ? *)
 let is_skolem tv =
   match tv.type_var_flavour with Skolem -> true | _ -> false
-
 
 (*****************************************************
    Equality
@@ -765,3 +766,8 @@ let flavour_of_sexp =
     | Atom "Skolem" -> Skolem
     | Atom "Meta"   -> Meta
     | _             -> assert false (* TODO: make this raise an exn *)
+
+
+let pred_type = function
+  | PredSub (t1,t2) -> type_fun [(Name.create "sub", t1)] type_total t2
+  | PredIFace (name, tps) -> Failure.todo "Type.Operations.predType.PredIFace"
