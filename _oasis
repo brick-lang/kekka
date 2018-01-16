@@ -10,7 +10,7 @@ BuildDepends: core, threads, str, bytes
 
 Library common
   Modules: Name, Name_prim, Syntax,
-           Failure, Id, Util, Unique
+           Failure, Id, Util, Unique, Monadic
   Path:    common
   Install: false
 

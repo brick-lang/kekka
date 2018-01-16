@@ -21,13 +21,16 @@ type evidence = {
 }
 
 (* implicit *)
-module HasTypeVar_evidence : HasTypeVar with type t = evidence = struct
+module HasTypeVar_evidence : HasTypeVarEx with type t = evidence = struct
   type t = evidence
   let substitute sub ({ev_pred = ep; _} as ev) =
     { ev with ev_pred = HasTypeVar_pred.substitute sub ep }
   let ftv {ev_pred = ep; _} = HasTypeVar_pred.ftv ep
   let btv {ev_pred = ep; _} = HasTypeVar_pred.btv ep
+  let (|->) sub x = if sub_is_null sub then x else substitute sub x
 end
+
+module HasTypeVar_evidence_list = HasTypeVar_list(HasTypeVar_evidence)
 
 (* implicit *)
 module Show_evidence : Show with type t = evidence = struct
@@ -90,4 +93,11 @@ and fresh_sub_x (makeTVar:type_var -> typ) (flavour:flavour) (vars:type_var list
   let sub = sub_new (List.zip_exn vars (List.map tvars ~f:makeTVar)) in
   (tvars, sub)
 
-and fresh_sub f v = fresh_sub_x (fun x -> TVar x) f v 
+and fresh_sub f v = fresh_sub_x (fun x -> TVar x) f v
+
+(* Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
+ * the instantiated type, and a core transformer function (which applies type arguments and evidence) *)
+let skolemize_ex = instantiate_ex_fl Skolem
+
+(* Skolemize a type *)
+let skolemize (tp:typ) : rho = let (_,_,rho,_) = skolemize_ex tp in rho
