@@ -1,0 +1,6 @@
+(library
+ ((name kind)
+  (libraries (core common))
+  (wrapped false)))
+
+(jbuild_version 1)

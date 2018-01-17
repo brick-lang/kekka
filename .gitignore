@@ -1,13 +1,3 @@
-*.annot
-*.cmo
-*.cma
-*.cmi
-*.a
-*.o
-*.cmx
-*.cmxs
-*.cmxa
-*.mldylib
-*.mllib
 _build
-setup.data
+*.install
+*.merlin

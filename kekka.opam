@@ -1,0 +1,19 @@
+opam-version: "1.2"
+name: "kekka"
+version: "~unknown"
+maintainer: "Katherine Whitlock <toroidalcode@gmail.com>"
+authors: "Katherine Whitlock <toroidalcode@gmail.com>"
+homepage: "https://github.com/brick-lang/kekka"
+bug-reports: "https://github.com/brick-lang/kekka/issues"
+dev-repo: "https://github.com/brick-lang/kekka"
+license: "Apache-2.0"
+build: [
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "core"
+  "jbuilder" {build & >= "1.0+beta12"}
+  "ppx_let"
+]
+available: [ ocaml-version >= "4.04.1" ]
+descr: "Daan Leijen's lambda-k type system in OCaml"
