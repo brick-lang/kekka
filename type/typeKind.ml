@@ -1,6 +1,5 @@
 
-open BasicClasses
-open Kind
+open Common
 
 (*********************************
    Get the kind of a type
@@ -14,13 +13,13 @@ open Kind
 
 module type HasKind = sig
   type t
-  val get_kind : t -> kind
+  val get_kind : t -> Kind.kind
 end
 
 
 (* implicit *)
 module HasKind_kind = struct
-  type t = kind
+  type t = Kind.kind
   let get_kind k = k
 end
 

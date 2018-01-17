@@ -6,15 +6,14 @@
 
 
 open Core
-open Name
-open BasicClasses
+open Common
 
 
 (** Kind constant *)
-type kind_con = name
+type kind_con = Name.name
 
 (* implicit *)
-module Eq_kind_con : Eq with type t = kind_con = struct
+module Eq_kind_con : BasicClasses.Eq with type t = kind_con = struct
   type t = kind_con
   let equal x y = Name.Eq_name.equal x y
 end
@@ -31,7 +30,7 @@ type kind =
   | KApp of kind * kind   (* Application (only allowed for functions as yet) *)
 
 (* implicit *)
-module Eq_kind : Eq with type t = kind = struct
+module Eq_kind : BasicClasses.Eq with type t = kind = struct
   type t = kind
   let equal x y =
     let rec equal' x y = match x with
@@ -143,7 +142,7 @@ let rec extract_kind_fun : kind -> (kind list * kind) = function
 let is_kind_star   (k:kind) : bool = phys_equal k (kind_star)
 let is_kind_effect (k:kind) : bool = phys_equal k (kind_effect)
 
-let builtin_kinds : (name * kind) list =
+let builtin_kinds : (Name.name * kind) list =
   [
     (Name_prim.kind_star, kind_star); (* Value *)
     (Name_prim.kind_fun, kind_arrow); (* Type constructor *)

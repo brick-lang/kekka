@@ -1,7 +1,0 @@
-S common
-S type
-S kind
-PKG core
-B _build/common
-B _build/type
-B _build/kind
