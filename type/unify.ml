@@ -43,6 +43,7 @@ end
 module UnifyM = struct
   module M = Common.Monadic.Make(UnifyM_)
   include M
+  module Let_syntax = M
   let error err = fun (st:'a) -> Err(err,st)
   let get_subst = fun (st:'a) -> Ok(st.sub, st)
   let subst (x:typ) : typ t = get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_typ.(sub |-> x)
@@ -97,7 +98,7 @@ let match_named (tp:typ) (n:int) (named : Name.name list) : unit UnifyM.t =
 
 
 let extract_normalize_effect (tp:typ) : (typ list * typ) UnifyM.t = let open UnifyM in
-  (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_typ.(sub |-> tp)) >>= fun (tp') ->
+  let%bind tp' = (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_typ.(sub |-> tp)) in
   return @@ extract_ordered_effect tp'
 
 let rec unify (t1:typ) (t2:typ) : unit UnifyM.t = let open UnifyM in match (t1,t2) with
@@ -134,34 +135,33 @@ let rec unify (t1:typ) (t2:typ) : unit UnifyM.t = let open UnifyM in match (t1,t
 and unifies (tl1:typ list) (tl2:typ list) = let open UnifyM in match (tl1,tl2) with
   | [], [] -> UnifyM.return ()
   | t::ts, u::us ->
-      subst t >>= fun (st) ->
-      subst u >>= fun (su) ->
+      let%bind st = subst t in
+      let%bind su = subst u in 
       unify st su >>
       unifies ts us
 
   | _ -> Failure.failure "Type.Unify.unifies"
 
 and unify_effect (tp1:typ) (tp2:typ) = let open UnifyM in 
-  extract_normalize_effect tp1 >>= fun (ls1, tl1) ->
-  extract_normalize_effect tp2 >>= fun (ls2, tl2) ->
-  unify_labels ls1 ls2 >>= fun (ds1,ds2) ->
+  let%bind (ls1, tl1) = extract_normalize_effect tp1 in
+  let%bind (ls2, tl2) = extract_normalize_effect tp2 in
+  let%bind (ds1,ds2)  = unify_labels ls1 ls2 in
   match (expand_syn tl1, expand_syn tl2) with
   | (TVar{type_var_id=id1; type_var_kind=kind1; type_var_flavour=Meta},
      TVar{type_var_id=id2; type_var_kind=kind2; type_var_flavour=Meta}) when
       id1 = id2 && not (List.is_empty ds1 && List.is_empty ds2) -> error Infinite
   | _ ->
-      (if List.is_empty ds1 then return tl1 else
-         let tv1 = freshTVar Kind.kind_effect Kind.Meta in
-         unify tl1 (effect_extends ds1 tv1) >> return tv1) >>= fun (tail1) ->
-      subst tl2 >>= fun (stl2) ->
-      (if List.is_empty ds2 then return stl2 else
-         let tv2 = freshTVar Kind.kind_effect Kind.Meta in
-         unify stl2 (effect_extends ds2 tv2) >> return tv2) >>= fun (tail2) ->
-      subst tail1 >>= fun (stail1) ->
+      let%bind tail1 = (if List.is_empty ds1 then return tl1 else
+                          let tv1 = freshTVar Kind.kind_effect Kind.Meta in
+                          unify tl1 (effect_extends ds1 tv1) >> return tv1) in
+      let%bind stl2 = subst tl2 in
+      let%bind tail2 = (if List.is_empty ds2 then return stl2 else
+                          let tv2 = freshTVar Kind.kind_effect Kind.Meta in
+                          unify stl2 (effect_extends ds2 tv2) >> return tv2) in
+      let%bind stail1 = subst tail1 in
       unify stail1 tail2 >>
-      subst tp1 >>= fun (stp1) ->
-      subst tp2 >>= fun (stp2) ->
-      (* let%bind stp2 = subst tp2 in *)
+      let%bind stp1 = subst tp1 in
+      let%bind stp2 = subst tp2 in
       return ()
     
 
@@ -172,15 +172,15 @@ and unify_labels (ls1:tau list) (ls2:tau list) : (tau list * tau list) UnifyM.t 
   | ([], _::_) -> return (ls2,[])
   | (l1::ll1, l2::ll2) ->
       if (Name.compare_name (label_name l1) (label_name l2) < 0) then
-        unify_labels ll1 ls2 >>= fun (ds1,ds2) ->
+        let%bind (ds1,ds2) = unify_labels ll1 ls2 in
         return (ds1, l1::ds2)
       else if (Name.compare_name (label_name l1) (label_name l2) > 0) then
-        unify_labels ls1 ll2 >>= fun (ds1,ds2)->
+        let%bind (ds1,ds2) = unify_labels ls1 ll2 in
         return (l2::ds1, ds2)
       else
         unify l1 l2 >>
-        (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_list_typ.(sub |-> ll1)) >>= fun (ll1') ->
-        (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_list_typ.(sub |-> ll2)) >>= fun (ll2') ->
+        let%bind ll1' = (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_list_typ.(sub |-> ll1)) in
+        let%bind ll2' = (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_list_typ.(sub |-> ll2)) in
         unify_labels ll1 ll2
 
 (**
@@ -217,7 +217,7 @@ let subsume (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ)
 (* Escape check: no skolems should escape into the environment
  * Entailment check: predicates should be entailed
  * TODO: we should check for skolems since predicates with skolems must be entailed directly *)
-  get_subst >>= fun subst -> begin
+  let%bind subst = get_subst in begin
     let allfree = TypeVar.tvs_union free (TypeVar.HasTypeVar_typ.ftv tp1) in 
     let escaped = (* fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]  *)
       TypeVar.tvs_filter ~f:is_skolem @@ TypeVar.HasTypeVar_list_typ.ftv @@
@@ -228,9 +228,7 @@ let subsume (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ)
     (if (TypeVar.tvs_disjoint (TypeVar.tvs_new sks) escaped)
      then return () else error NoSubsume)
   end >>
-  entails (TypeVar.tvs_new sks)
-    HasTypeVar_evidence_list.(subst |-> evs1)
-    HasTypeVar_evidence_list.(subst |-> evs2) >>= fun (evs_ent, core_ent) ->
+  let%bind (evs_ent, core_ent) = entails (TypeVar.tvs_new sks) HasTypeVar_evidence_list.(subst |-> evs1) HasTypeVar_evidence_list.(subst |-> evs2) in
   let (vars, ssub) = fresh_sub Bound sks in
   let subx = TypeVar.(ssub @@@ subst) in
   let tp = quantify_type vars @@
