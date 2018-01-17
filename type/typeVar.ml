@@ -1,10 +1,10 @@
 open Core                       (* TODO: Make this Core_kernel
                                  * and turn TVMap and TVSet into
                                  * Map and Set*)
-open Util
 open Type
 open Kind
-open BasicClasses
+open Common
+open Common.Util
 
 (* Really fancy module magic *)
 module T = struct

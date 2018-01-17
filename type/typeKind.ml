@@ -1,5 +1,5 @@
 
-open BasicClasses
+open Common
 open Kind
 
 (*********************************

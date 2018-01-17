@@ -1,6 +1,6 @@
 open Core
-open BasicClasses
-open Util
+open Common
+open Common.Util
 open Kind
 open Type
 open TypeVar
@@ -33,7 +33,7 @@ end
 module HasTypeVar_evidence_list = HasTypeVar_list(HasTypeVar_evidence)
 
 (* implicit *)
-module Show_evidence : Show with type t = evidence = struct
+module Show_evidence : BasicClasses.Show with type t = evidence = struct
   type t = evidence
   let show {ev_pred = ep; _} = Show_pred.show ep
 end

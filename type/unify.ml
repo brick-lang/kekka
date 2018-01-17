@@ -1,5 +1,6 @@
 open Core
-open Util
+open Common
+open Common.Util
 open Type
 (* open TypeVar *)
 open TypeOperations
@@ -40,7 +41,7 @@ module UnifyM_ = struct
   let map a ~f = bind a ~f:(return <.> f)
 end
 module UnifyM = struct
-  module M = Monadic.Make(UnifyM_)
+  module M = Common.Monadic.Make(UnifyM_)
   include M
   let error err = fun (st:'a) -> Err(err,st)
   let get_subst = fun (st:'a) -> Ok(st.sub, st)
@@ -66,8 +67,8 @@ let overlaps (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ) : unit UnifyM.t =
       let (fixed1,optional1) = List.split_while ~f:(not <.> is_optional) (List.map ~f:snd targs1) in
       let (fixed2,optional2) = List.split_while ~f:(not <.> is_optional) (List.map ~f:snd targs2) in
       let hi = Pervasives.max (List.length fixed1) (List.length fixed2) in
-      let fo1 = (Util.flip List.take) hi (fixed1 @ (List.map ~f:unoptional optional1)) in
-      let fo2 = (Util.flip List.take) hi (fixed2 @ (List.map ~f:unoptional optional1)) in
+      let fo1 = (flip List.take) hi (fixed1 @ (List.map ~f:unoptional optional1)) in
+      let fo2 = (flip List.take) hi (fixed2 @ (List.map ~f:unoptional optional1)) in
       if ((List.length fo1) <> (List.length fo2)) then
         UnifyM.error NoMatch     (* one has more fixed arguments than the other can ever get *)
       else UnifyM.return ()
