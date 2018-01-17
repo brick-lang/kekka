@@ -1,14 +1,13 @@
 open Core
 open Common
 open Common.Util
-open Kind
 open Type
 open TypeVar
 
 (*****************************************************
  * Fresh type variables
  *****************************************************)
-let freshTVar (kind:kind) (flavour:flavour) : typ =
+let freshTVar (kind:Kind.kind) (flavour:Kind.flavour) : typ =
   TVar (fresh_type_var kind flavour)
 
 (*****************************************************
@@ -43,12 +42,12 @@ let rec instantiate (tp:typ) : rho =
   let (_,_,rho,_) = instantiate_ex tp in rho
 
 and instantiate_ex (tp:typ) =
-  let (ids, preds, rho, coref) = instantiate_ex_fl Meta tp in
+  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Meta tp in
   let (erho, coreg) = extend rho in
   (ids, preds, erho, coreg <.> coref)
 
 and instantiate_no_ex (tp:typ) =
-  let (ids, preds, rho, coref) = instantiate_ex_fl Meta tp in
+  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Meta tp in
   (ids, preds, rho, coref)
 
 (** Ensure the result of function always gets an extensible effect type
@@ -68,7 +67,7 @@ and extend (tp:rho) : rho * (Heart.expr -> Heart.expr) =
   | _ -> (tp, Util.id)
 
 (** General instantiation for skolemize and instantiate  *)
-and instantiate_ex_fl (flavour:flavour) (tp:typ)
+and instantiate_ex_fl (flavour:Kind.flavour) (tp:typ)
   : (type_var list * evidence list * rho * (Heart.expr -> Heart.expr)) =
   match split_pred_type tp with
   | ([],[],rho) -> ([], [], rho, Util.id)
@@ -88,7 +87,7 @@ and pred_name (pred:pred) : Heart.tname =
                            | PredIFace (iname,_) -> Heart.fresh_name (Name.show_name iname)
   in (name, Type.pred_type pred)
 
-and fresh_sub_x (makeTVar:type_var -> typ) (flavour:flavour) (vars:type_var list) : type_var list * sub =
+and fresh_sub_x (makeTVar:type_var -> typ) (flavour:Kind.flavour) (vars:type_var list) : type_var list * sub =
   let tvars = List.map ~f:(fun tv -> fresh_type_var tv.type_var_kind flavour) vars in
   let sub = sub_new (List.zip_exn vars (List.map tvars ~f:makeTVar)) in
   (tvars, sub)
