@@ -335,15 +335,18 @@ let sub_single tvar (tau:tau) : sub =
    * ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular,
    * the IDs of built-in types such as .select must be distinct from further IDs generated
    * by the compiler. *)
-  Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (TVSet.mem (HasTypeVar_typ.ftv tau) tvar)) @@
-  Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
   C.Map.singleton tvar tau
+  |> Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
+  |> Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (TVSet.mem (HasTypeVar_typ.ftv tau) tvar))
 
 let sub_compose (sub1:sub) (sub2:sub) : sub =
   let open HasTypeVar_sub in
   TVMap.union sub1 (sub1 |-> sub2)
 
 let (@@@) sub1 sub2 = sub_compose sub1 sub2
+
+let sub_extend (tvar:type_var) (tau:tau) (sub:sub) =
+  (sub_single tvar tau) @@@ sub
 
 let fresh_type_var kind (flavour : Kind.flavour) =
   let id = Unique.unique_id (match flavour with Kind.Meta -> "_v" | Kind.Skolem -> "$v" | Kind.Bound -> "v") in

@@ -17,12 +17,6 @@ module type HasKind = sig
 end
 
 
-(* implicit *)
-module HasKind_kind = struct
-  type t = Kind.kind
-  let get_kind k = k
-end
-
 let get_kind_kind k = k
 let get_kind_type_var { Type.type_var_kind = k; _ } = k
 let get_kind_type_con { Type.type_con_kind = k; _ } = k
@@ -30,7 +24,7 @@ let get_kind_type_syn { Type.type_syn_kind = k; _ } = k
 let rec get_kind_typ =
   let open Kind in 
   let rec collect acc = function
-    | KApp(KApp(arr,k1),k2) when arr == kind_arrow -> collect (k1::acc) k2
+    | KApp(KApp(arr,k1),k2) when arr = kind_arrow -> collect (k1::acc) k2
     | k -> k :: acc
   in
   let rec kind_apply l k =
