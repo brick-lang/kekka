@@ -7,7 +7,7 @@ open TypeVar
 (*****************************************************
  * Fresh type variables
  *****************************************************)
-let freshTVar (kind:Kind.kind) (flavour:Kind.flavour) : typ =
+let freshTVar (kind:Kind.Inner.kind) (flavour:Kind.Inner.flavour) : typ =
   TVar (fresh_type_var kind flavour)
 
 (*****************************************************
@@ -42,12 +42,12 @@ let rec instantiate (tp:typ) : rho =
   let (_,_,rho,_) = instantiate_ex tp in rho
 
 and instantiate_ex (tp:typ) =
-  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Meta tp in
+  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Inner.Meta tp in
   let (erho, coreg) = extend rho in
   (ids, preds, erho, coreg <.> coref)
 
 and instantiate_no_ex (tp:typ) =
-  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Meta tp in
+  let (ids, preds, rho, coref) = instantiate_ex_fl Kind.Inner.Meta tp in
   (ids, preds, rho, coref)
 
 (** Ensure the result of function always gets an extensible effect type
@@ -59,7 +59,7 @@ and extend (tp:rho) : rho * (Heart.expr -> Heart.expr) =
   | TFun (args, eff, res) ->
       let (ls, tl) = extract_ordered_effect eff in
       if is_effect_empty tl then
-        let tv = freshTVar Kind.kind_effect Meta in
+        let tv = freshTVar Kind.Inner.kind_effect Meta in
         let open_eff = effect_extends ls tv in
         let open_tp = TFun(args, open_eff, res) in
         (open_tp, fun core -> Heart.open_effect_expr eff open_eff tp open_tp core)
@@ -67,7 +67,7 @@ and extend (tp:rho) : rho * (Heart.expr -> Heart.expr) =
   | _ -> (tp, Util.id)
 
 (** General instantiation for skolemize and instantiate  *)
-and instantiate_ex_fl (flavour:Kind.flavour) (tp:typ)
+and instantiate_ex_fl (flavour:Kind.Inner.flavour) (tp:typ)
   : (type_var list * evidence list * rho * (Heart.expr -> Heart.expr)) =
   match split_pred_type tp with
   | ([],[],rho) -> ([], [], rho, Util.id)
@@ -87,7 +87,7 @@ and pred_name (pred:pred) : Heart.tname =
                            | PredIFace (iname,_) -> Heart.fresh_name (Name.show_name iname)
   in (name, Type.pred_type pred)
 
-and fresh_sub_x (makeTVar:type_var -> typ) (flavour:Kind.flavour) (vars:type_var list) : type_var list * sub =
+and fresh_sub_x (makeTVar:type_var -> typ) (flavour:Kind.Inner.flavour) (vars:type_var list) : type_var list * sub =
   let tvars = List.map ~f:(fun tv -> fresh_type_var tv.type_var_kind flavour) vars in
   let sub = sub_new (List.zip_exn vars (List.map tvars ~f:makeTVar)) in
   (tvars, sub)

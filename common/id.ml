@@ -36,3 +36,6 @@ module Show_id = struct
   type t = id
   let show (i:id) = string_of_int i
 end
+
+module Map = Int.Map
+module Set = Int.Set

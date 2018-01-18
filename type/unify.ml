@@ -17,45 +17,39 @@ type unify_error =
   | Infinite
   | NoArgMatch of int * int
 
-type st = { uniq : int; sub : TypeVar.sub }
+type st = TypeVar.sub           (* global state *)
 type 'a res =
   | Ok of 'a * st
   | Err of unify_error * st
 
-(* TODO: this might need to be lazy *)
-(* module rec UnifyM : Monadic.S with type 'a t = (st -> 'a res) = struct
- *   type 'a t = (st -> 'a res)
- *   let return (x:'a) : 'a t = fun st -> Ok(x,st)
- *   let bind (u:'a t) (f: 'a -> 'b t) : 'b t = fun st1 ->
- *     match u st1 with
- *     | Ok(x,st2) -> (f x) st2
- *     | Err(err,st2) -> Err(err,st2)
- * end *)
-module UnifyM_ = struct
-  type 'a t = (st -> 'a res)
-  let return (x:'a) : 'a t = fun st -> Ok(x,st)
-  let bind (u:'a t) ~(f: 'a -> 'b t) : 'b t = fun st1 ->
-    match u st1 with
-    | Ok(x,st2) -> (f x) st2
-    | Err(err,st2) -> Err(err,st2)
-  let map a ~f = bind a ~f:(return <.> f)
-end
+(* The unification state-monad *)
 module UnifyM = struct
-  module M = Common.Monadic.Make(UnifyM_)
-  include M
-  module Let_syntax = M
-  let error err = fun (st:'a) -> Err(err,st)
-  let extend_sub tv tp = fun (st:'a) -> Ok((), {st with sub=TypeVar.sub_extend tv tp st.sub })
+  module Let_syntax = struct
+    type 'a t = (st -> 'a res)
+    let return (x:'a) : 'a t = fun st -> Ok(x,st)
+    let bind (u:'a t) ~(f: 'a -> 'b t) : 'b t = fun st1 ->
+      match u st1 with
+      | Ok(x,st2) -> (f x) st2
+      | Err(err,st2) -> Err(err,st2)
+    let map a ~f = bind a ~f:(return <.> f)
+  end
   
-  let get_subst = fun (st:'a) -> Ok(st.sub, st)
+  include Common.Monadic.Make(Let_syntax)
+
+  let run f =
+    match f TypeVar.sub_null with
+    | Ok(x,sub) -> (Result.Ok x, sub)
+    | Err(err,sub) -> (Result.Error err, sub)
+  
+  let error err = fun (st:'a) -> Err(err,st)
+  let extend_sub tv tp = fun (st:'a) -> Ok((), TypeVar.sub_extend tv tp st)
+  
+  let get_subst = fun (st:'a) -> Ok(st, st)
   let subst (x:typ) : typ t = get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_typ.(sub |-> x)
   let subst_list (x:typ list) : typ list t = get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_list_typ.(sub |-> x)
   let subst_pred (x:pred) : pred t = get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_pred.(sub |-> x)
 end
-(* let unify_error err : 'a t = fun st -> Err(err,st) *)
-(* let (>>=) = bind *)
 
-(* TODO: All of these should take positions as the first arguments *)
 
 (** Do two types overlap on the argument types? Used to check for overlapping
   * definitions of overloaded identifiers. *)
@@ -64,8 +58,7 @@ let overlaps (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ) : unit UnifyM.t =
   let rho2 = instantiate tp2 in
   match (split_fun_type rho1, split_fun_type rho2) with
   (* values always overlap *)
-  | (None,_) -> UnifyM.return ()
-  | (_,None) -> UnifyM.return ()
+  | (None,_) | (_,None) -> UnifyM.return ()
   (* rest *)
   | (Some(targs1,_,_),Some(targs2,_,_)) ->
       let (fixed1,optional1) = List.split_while ~f:(not <.> is_optional) (List.map ~f:snd targs1) in
@@ -100,8 +93,8 @@ let match_named (tp:typ) (n:int) (named : Name.name list) : unit UnifyM.t =
         else UnifyM.error NoMatch
 
 let rec match_kind kind1 kind2 : bool = match kind1, kind2 with
-  | Kind.KCon(c1), Kind.KCon(c2) -> c1 = c2
-  | Kind.KApp(a1,r1), Kind.KApp(a2,r2) -> (match_kind a1 a2) && (match_kind r1 r2)
+  | Kind.Inner.KCon(c1), Kind.Inner.KCon(c2) -> c1 = c2
+  | Kind.Inner.KApp(a1,r1), Kind.Inner.KApp(a2,r2) -> (match_kind a1 a2) && (match_kind r1 r2)
   | _,_ -> false
 
 let match_kinds kinds1 kinds2 : unit UnifyM.t =
@@ -113,7 +106,7 @@ let match_kinds kinds1 kinds2 : unit UnifyM.t =
     UnifyM.error NoMatchKind
 
 let extract_normalize_effect (tp:typ) : (typ list * typ) UnifyM.t = let open UnifyM in
-  let%bind tp' = (get_subst >>= fun (sub) -> return TypeVar.HasTypeVar_typ.(sub |-> tp)) in
+  let%bind tp' = subst tp in
   return @@ extract_ordered_effect tp'
 
 let rec unify (t1:typ) (t2:typ) : unit UnifyM.t = let open UnifyM in match (t1,t2) with
@@ -155,7 +148,7 @@ let rec unify (t1:typ) (t2:typ) : unit UnifyM.t = let open UnifyM in match (t1,t
       (* replace with shared bound variables in both types
        * NOTE: assumes ordered quantifiers and ordered predicates
        * NOTE: we don't use Skolem as a Meta variable can unify with a Skolem but not with a Bound one *)
-      let vars = List.map ~f:(fun kind -> freshTVar kind Kind.Bound) kinds1 in
+      let vars = List.map ~f:(fun kind -> freshTVar kind Kind.Inner.Bound) kinds1 in
       let sub1 = TypeVar.sub_new @@ List.zip_exn vars1 vars in
       let sub2 = TypeVar.sub_new @@ List.zip_exn vars2 vars in
       let stp1 = TypeVar.HasTypeVar_typ.(sub1 |-> tp1) in
@@ -198,11 +191,11 @@ and unify_effect (tp1:typ) (tp2:typ) = let open UnifyM in
       id1 = id2 && not (List.is_empty ds1 && List.is_empty ds2) -> error Infinite
   | _ ->
       let%bind tail1 = (if List.is_empty ds1 then return tl1 else
-                          let tv1 = freshTVar Kind.kind_effect Kind.Meta in
+                          let tv1 = freshTVar Kind.Inner.kind_effect Kind.Inner.Meta in
                           unify tl1 (effect_extends ds1 tv1) >> return tv1) in
       let%bind stl2 = subst tl2 in
       let%bind tail2 = (if List.is_empty ds2 then return stl2 else
-                          let tv2 = freshTVar Kind.kind_effect Kind.Meta in
+                          let tv2 = freshTVar Kind.Inner.kind_effect Kind.Inner.Meta in
                           unify stl2 (effect_extends ds2 tv2) >> return tv2) in
       let%bind stail1 = subst tail1 in
       unify stail1 tail2 >>
@@ -216,7 +209,7 @@ and unify_effect_var tv1 tp2  = let open UnifyM in
   | TVar tv2 when tv1 = tv2 ->  (* e ~ <div,exn|e> ~> e := <div,exn|e'> *)
       error Infinite
   | _ ->
-      (* let tv = freshTVar Kind.kind_effect Kind.Meta in *)
+      (* let tv = freshTVar Kind.Inner.kind_effect Kind.Inner.Meta in *)
       unify_tvar tv1 (effect_extends ls2 tl2)
 
 and unify_tvar (tv:type_var) (tp:typ) : unit UnifyM.t =
@@ -230,8 +223,8 @@ and unify_tvar (tv:type_var) (tp:typ) : unit UnifyM.t =
     | _ -> UnifyM.error Infinite
   else
     match etp with
-    | TVar{type_var_flavour=Kind.Bound} -> UnifyM.error NoMatch (* can't unify with bound variables *)
-    | TVar({type_var_id=id2; type_var_flavour=Kind.Meta} as tv2) when tv.type_var_id <= id2 ->
+    | TVar{type_var_flavour=Kind.Inner.Bound} -> UnifyM.error NoMatch (* can't unify with bound variables *)
+    | TVar({type_var_id=id2; type_var_flavour=Kind.Inner.Meta} as tv2) when tv.type_var_id <= id2 ->
         if tv.type_var_id < id2 then
           unify_tvar tv2 (TVar tv)
         else

@@ -15,13 +15,13 @@ type kind_con = Name.name
 (* implicit *)
 module Eq_kind_con : BasicClasses.Eq with type t = kind_con = struct
   type t = kind_con
-  let equal x y = Name.Eq_name.equal x y
+  let equal = Name.Eq_name.equal
 end
 
 (* implicit *)
 module Show_kind_con = struct
   type t = kind_con
-  let show kc = Name.show_name kc
+  let show = Name.show_name
 end
 
 (** Kinds *)
@@ -146,9 +146,9 @@ let builtin_kinds : (Name.name * kind) list =
   [
     (Name_prim.kind_star, kind_star); (* Value *)
     (Name_prim.kind_fun, kind_arrow); (* Type constructor *)
-    (Name_prim.kind_pred, kind_pred);
+    (Name_prim.kind_pred, kind_pred); (* Predicate *)
     (Name_prim.kind_effect, kind_effect); (* Effect constants *)
-    (Name_prim.kind_label, kind_label);
+    (Name_prim.kind_label, kind_label);   (* Labels *)
     (Name_prim.kind_heap, kind_heap) (* Heaps *)
   ]
 

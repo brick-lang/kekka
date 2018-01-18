@@ -19,7 +19,7 @@ module T = struct
     let ss = sexp_of_string in
     sexp_of_list Fn.id ([
         sp ss Id.sexp_of_id ("type_var_id", n.type_var_id);
-        sp ss Kind.sexp_of_kind ("type_var_kind", n.type_var_kind);
+        sp ss Kind.Inner.sexp_of_kind ("type_var_kind", n.type_var_kind);
         sp ss sexp_of_flavour ("type_var_flavor", n.type_var_flavour)
       ])
 
@@ -31,7 +31,7 @@ module T = struct
     let a = array_of_sexp Fn.id s in
     {
       type_var_id      = snd (ps ss Id.id_of_sexp a.(0));
-      type_var_kind    = snd (ps ss Kind.kind_of_sexp a.(1));
+      type_var_kind    = snd (ps ss Kind.Inner.kind_of_sexp a.(1));
       type_var_flavour = snd (ps ss flavour_of_sexp a.(2));
     }
 end
@@ -71,10 +71,6 @@ module TVMap = struct
   let union m1 m2 =
     let m1_vals = to_alist m1 in
     List.fold_left m1_vals ~f:(fun m (k,v) -> add m ~key:k ~data:v) ~init:m2
-
-  let elems m1 =
-    let m1_pairs = to_alist m1 in
-    List.map m1_pairs ~f:(fun (k,v) -> v)
 end
 
 
@@ -82,14 +78,14 @@ end
  * Debugging
  ********************************************************************)
 let show_type_var { Type.type_var_id=name ; Type.type_var_kind=kind; _} =
-  Id.show_id name ^ " : " ^ Kind.Show_kind.show kind
+  Id.show_id name ^ " : " ^ Kind.Inner.Show_kind.show kind
 
 let rec show_tp =
   let open Type in function
     | Type.TVar tvar -> show_type_var tvar
-    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Kind.Show_kind.show tcon.type_con_kind
+    | Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Kind.Inner.Show_kind.show tcon.type_con_kind
     | TApp(tp,args)  -> show_tp tp ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">"
-    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Kind.Show_kind.show syn.type_syn_kind
+    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Kind.Inner.Show_kind.show syn.type_syn_kind
                              ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">" ^ "[" ^ show_tp body ^ "])"
     | _ -> "?"
 
@@ -187,7 +183,7 @@ let sub_is_null : sub -> bool = TVMap.is_empty
 let sub_new (sub : (t * tau) list) : sub =
   Failure.assertion ("TypeVar.sub_new.KindMisMatch: " ^ (string_of_int @@ List.length sub)
                      ^ String.concat (List.map ~f:(fun (x,t) -> "(" ^ show_type_var x ^ " |-> " ^ show_tp t ^ ")") sub))
-    (List.for_all ~f:(fun (x,t) -> Kind.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
+    (List.for_all ~f:(fun (x,t) -> Kind.Inner.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
     C.Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 (** This is the set of all types in our current environment.
@@ -205,9 +201,9 @@ let sub_find tvar sub : tau = match sub_lookup tvar sub with
   | Some tau ->
       Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
                          ^ Show_type_var.show tvar ^ ":"
-                         ^ Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
-                         ^ "?" ^ ":" ^ Kind.Show_kind.show (TypeKind.get_kind_typ tau))
-        (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
+                         ^ Kind.Inner.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                         ^ "?" ^ ":" ^ Kind.Inner.Show_kind.show (TypeKind.get_kind_typ tau))
+        (Kind.Inner.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
 
 module HasTypeVar_list (H:HasTypeVar) : HasTypeVarEx with type t = H.t list = struct
@@ -336,7 +332,7 @@ let sub_single tvar (tau:tau) : sub =
    * the IDs of built-in types such as .select must be distinct from further IDs generated
    * by the compiler. *)
   C.Map.singleton tvar tau
-  |> Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
+  |> Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Kind.Inner.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
   |> Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (TVSet.mem (HasTypeVar_typ.ftv tau) tvar))
 
 let sub_compose (sub1:sub) (sub2:sub) : sub =
@@ -348,6 +344,6 @@ let (@@@) sub1 sub2 = sub_compose sub1 sub2
 let sub_extend (tvar:type_var) (tau:tau) (sub:sub) =
   (sub_single tvar tau) @@@ sub
 
-let fresh_type_var kind (flavour : Kind.flavour) =
-  let id = Unique.unique_id (match flavour with Kind.Meta -> "_v" | Kind.Skolem -> "$v" | Kind.Bound -> "v") in
+let fresh_type_var kind (flavour : Kind.Inner.flavour) =
+  let id = Unique.unique_id (match flavour with Kind.Inner.Meta -> "_v" | Kind.Inner.Skolem -> "$v" | Kind.Inner.Bound -> "v") in
   { type_var_id = id; type_var_kind = kind; type_var_flavour = flavour }

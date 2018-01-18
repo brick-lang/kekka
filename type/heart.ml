@@ -87,8 +87,8 @@ let open_effect_expr
       (tp_from : Type.typ) (tp_to : Type.typ)
       (expr : expr) : expr =
   let open Type in
-  let a : type_var = { type_var_id = -1; type_var_kind = Kind.kind_effect; type_var_flavour = Bound } in
-  let b : type_var = { type_var_id = -2; type_var_kind = Kind.kind_effect; type_var_flavour = Bound } in
+  let a : type_var = { type_var_id = -1; type_var_kind = Kind.Inner.kind_effect; type_var_flavour = Bound } in
+  let b : type_var = { type_var_id = -2; type_var_kind = Kind.Inner.kind_effect; type_var_flavour = Bound } in
   (* forall a b. fun(x:tp_from)-> tp_to[total] *)
   let tp_open : typ = TForall([a;b], [], TFun([(Name.create "x", tp_from)], Type.type_total, tp_to)) in
   let var_open : expr = Var { var_name = (Name_prim.name_effect_open, tp_open)
