@@ -1,5 +1,5 @@
-
 open Common
+open Heart
 
 (*********************************
    Get the kind of a type
@@ -13,7 +13,7 @@ open Common
 
 module type HasKind = sig
   type t
-  val get_kind : t -> Kind.Inner.kind
+  val get_kind : t -> Kind.kind
 end
 
 
@@ -22,7 +22,7 @@ let get_kind_type_var { Type.type_var_kind = k; _ } = k
 let get_kind_type_con { Type.type_con_kind = k; _ } = k
 let get_kind_type_syn { Type.type_syn_kind = k; _ } = k
 let rec get_kind_typ =
-  let open Kind.Inner in 
+  let open Kind in 
   let rec collect acc = function
     | KApp(KApp(arr,k1),k2) when arr = kind_arrow -> collect (k1::acc) k2
     | k -> k :: acc

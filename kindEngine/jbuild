@@ -1,0 +1,5 @@
+(library
+ ((name kindEngine)
+  (libraries (core common heart))))
+
+(jbuild_version 1)

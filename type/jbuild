@@ -1,7 +1,0 @@
-(library
- ((name type)
-  (libraries (core common kind))
-  (wrapped false)
-  (preprocess (pps (ppx_let)))))
-
-(jbuild_version 1)

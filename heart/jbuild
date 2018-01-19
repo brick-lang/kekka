@@ -1,5 +1,5 @@
 (library
- ((name kind)
+ ((name heart)
   (libraries (core common))))
 
 (jbuild_version 1)
