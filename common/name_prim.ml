@@ -84,7 +84,7 @@ let name_tp_exception = prelude_name "exception"
 
 let name_tuple n = prelude_name ("(" ^ String.make (n - 1) ',' ^ ")")
 
-let is_name_tuple (name : Name.name) =
+let is_name_tuple (name : Name.t) =
   let s = String.to_list name.Name.name_id in
   (name.Name.name_module) = (name_system_core.Name.name_id) &&
   (List.length s) >= 2 &&

@@ -37,7 +37,7 @@ type typ =
 
 
   (** $(x:a, y:b, z:c) \rightarrow m\ d$ *)
-  | TFun of ((Name.name * typ) list) * effect * typ
+  | TFun of ((Name.t * typ) list) * effect * typ
 
   (**  a type constant (primitive, label, or newtype; not $\rightarrow$ or $\Rightarrow$) *)
   | TCon of type_con
@@ -55,7 +55,7 @@ type typ =
   | TSyn of type_syn * (typ list) * typ
 
 and pred = PredSub   of typ * typ
-         | PredIFace of Name.name * typ list
+         | PredIFace of Name.t * typ list
 
 (** Various synonyms of types *)
 and scheme = typ
@@ -91,14 +91,14 @@ and type_var = {
 (** Type constants have a name and a kind.
  *  Eg. $c^K$ *)
 and type_con =  {
-  type_con_name : Name.name;
+  type_con_name : Name.t;
   type_con_kind : Kind.Inner.kind;
 }
 
 (** Type synonyms have an identifier, kind, and rank (used for partial ordering among type synonyms)
  * Eg. $\alpha^K_r$  *)
 and type_syn = {
-  type_syn_name : Name.name;
+  type_syn_name : Name.t;
   type_syn_kind : Kind.Inner.kind;
   type_syn_rank : synonym_rank;
   type_syn_info : syn_info option;
@@ -119,7 +119,7 @@ and synonym_rank = int
 (** Data type information: name, kind, type arguments, and constructors *)
 and data_info = {
   data_info_sort    : Syntax.data_kind;
-  data_info_name    : Name.name;
+  data_info_name    : Name.t;
   data_info_kind    : Kind.Inner.kind;
   data_info_params  : type_var list;       (** arguments *)
   data_info_constrs : con_info list;
@@ -132,11 +132,11 @@ and data_info = {
 (** Constructor information: constructor name, name of the newtype,
  * field types, and the full type of the constructor *)
 and con_info = {
-  con_info_name : Name.name;
-  con_info_type_name    : Name.name;
+  con_info_name : Name.t;
+  con_info_type_name    : Name.t;
   (* con_info_type_sort : name *)
   con_info_exists       : type_var list;       (** existentials *)
-  con_info_params       : (Name.name * typ) list;   (** field types *)
+  con_info_params       : (Name.t * typ) list;   (** field types *)
   con_info_type         : scheme;
   con_info_type_sort    : Syntax.data_kind;
   (* con_info_range        : range; *)         (** Source code position information *)
@@ -147,7 +147,7 @@ and con_info = {
 
 (** A type synonym is quantified by type parameters *)
 and syn_info = {
-  name   : Name.name;
+  name   : Name.t;
   kind   : Kind.Inner.kind;
   params : type_var list;        (** parameters *)
   typ    : typ;                  (** result type *)
@@ -309,10 +309,10 @@ let eq_type_var tv1 tv2 = tv1.type_var_id = tv2.type_var_id
 let compare_type_var tv1 tv2 = Core.Int.compare tv1.type_var_id tv2.type_var_id
 
 let eq_type_con tc1 tc2 = tc1.type_con_name = tc2.type_con_name
-let compare_type_con tc1 tc2 = Name.compare_name tc1.type_con_name tc2.type_con_name
+let compare_type_con tc1 tc2 = Name.compare tc1.type_con_name tc2.type_con_name
 
 let eq_type_syn ts1 ts2 = ts1.type_syn_name = ts2.type_syn_name
-let compare_type_syn ts1 ts2 = Name.compare_name ts1.type_syn_name ts2.type_syn_name
+let compare_type_syn ts1 ts2 = Name.compare ts1.type_syn_name ts2.type_syn_name
 
 (******************************************************
    Split/add quantifiers
@@ -462,7 +462,7 @@ let tcon_string = { type_con_name = Name_prim.name_tp_string; type_con_kind = Ki
 (** Type of strings *)
 let type_string : tau = TCon(tcon_string)
 
-let label_name (tp : tau) : Name.name =
+let label_name (tp : tau) : Name.t =
   match expand_syn tp with
   | TCon(tc) -> tc.type_con_name
   | TApp(TCon(tc),_) -> Failure.assertion "non-expanded type synonym used as a label" (tc.type_con_name <> Name_prim.name_effect_extend) tc.type_con_name
@@ -552,7 +552,7 @@ let extract_ordered_effect (tp : tau) : (tau list * tau) =
   in
   let (labs,tl) = extract_effect_extend tp in
   let labss     = List.concat_map ~f:expand labs in
-  let slabs     = List.dedup @@ List.sort ~cmp:(fun l1 l2 -> Name.compare_name (label_name l1) (label_name l2)) labss in
+  let slabs     = List.dedup @@ List.sort ~cmp:(fun l1 l2 -> Name.compare (label_name l1) (label_name l2)) labss in
   (slabs,tl)
 
 
@@ -585,7 +585,7 @@ let minimal_form : typ -> typ = function
    Primitive Types Cont.
  ***********************************************)
 
-let single (name : Name.name) : effect =
+let single (name : Name.t) : effect =
   effect_extend (TCon { type_con_name = name; type_con_kind = Kind.Inner.kind_effect }) effect_empty
 
 let type_divergent : tau = single Name_prim.name_tp_div

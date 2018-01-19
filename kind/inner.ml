@@ -1,24 +1,19 @@
-
 (**
  * Definitions of kinds and helper functions
  * For more information, see Figure 1. of the paper.
 *)
 
-
 open Core
 open Common
 
-
 (** Kind constant *)
-type kind_con = Name.name
+type kind_con = Name.t
 
-(* implicit *)
 module Eq_kind_con : BasicClasses.Eq with type t = kind_con = struct
   type t = kind_con
-  let equal = Name.Eq_name.equal
+  let equal = Name.equal
 end
 
-(* implicit *)
 module Show_kind_con = struct
   type t = kind_con
   let show = Name.show_name
@@ -57,7 +52,7 @@ end
 let sexp_of_kind kind = 
   let open Sexplib in
   let ss = sexp_of_string in
-  let sn = Name.sexp_of_name in
+  let sn = Name.sexp_of_t in
   let rec sk = function
     | KCon kc     -> sexp_of_pair ss sn ("KCon", kc)
     | KApp(k1,k2) -> Conv.sexp_of_triple ss sk sk ("KApp", k1, k2)
@@ -66,7 +61,7 @@ let sexp_of_kind kind =
 let rec kind_of_sexp sexp =
   let open Sexp in
   match list_of_sexp Fn.id sexp with
-  | [Atom "KCon"; kc]     -> KCon(Name.name_of_sexp kc)
+  | [Atom "KCon"; kc]     -> KCon(Name.t_of_sexp kc)
   | [Atom "KApp"; k1; k2] -> KApp(kind_of_sexp k1, kind_of_sexp k2)
   | _ -> assert false           (* TODO: Make this raise an exn *)
 
@@ -142,7 +137,7 @@ let rec extract_kind_fun : kind -> (kind list * kind) = function
 let is_kind_star   (k:kind) : bool = phys_equal k (kind_star)
 let is_kind_effect (k:kind) : bool = phys_equal k (kind_effect)
 
-let builtin_kinds : (Name.name * kind) list =
+let builtin_kinds : (Name.t * kind) list =
   [
     (Name_prim.kind_star, kind_star); (* Value *)
     (Name_prim.kind_fun, kind_arrow); (* Type constructor *)

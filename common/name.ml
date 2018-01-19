@@ -1,5 +1,6 @@
 open Core
 open BasicClasses
+open Util
 
 (* let implode = List.fold_right ~init: "" ~f:(fun c cs -> (Char.to_string c) ^ cs) *)
 let implode l =
@@ -19,25 +20,14 @@ let implode l =
  * The hash is case-insensitive, just like comparisons on names.
  * Use 'name_case_equal' for case-sensitive comparisons.
 *)
-type name =  {
+type t =  {
   name_module : string;
   hash_module : int;
   name_id     : string;
   hash_id     : int;
 }
 
-(* implicit *)
-module Eq_name = struct
-  type t = name
-  let equal x y =
-    (String.equal x.name_module y.name_module) &&
-    (x.hash_module = y.hash_module) &&
-    (String.equal x.name_id y.name_id) &&
-    (x.hash_id = y.hash_id)
-
-end
-
-let sexp_of_name n =
+let sexp_of_t n =
   let open Sexplib in
   let sp = sexp_of_pair in
   let ss = sexp_of_string in
@@ -49,7 +39,7 @@ let sexp_of_name n =
       sp ss si ("hash_id", n.hash_id)
     ])
 
-let name_of_sexp s =
+let t_of_sexp s =
   let open Sexplib in
   let ps = pair_of_sexp in
   let ss = string_of_sexp in
@@ -61,8 +51,6 @@ let name_of_sexp s =
     name_id     = snd (ps ss ss a.(2));
     hash_id     = snd (ps ss is a.(3));
   }
-
-type names = name list
 
 let name_case_equal
       { name_module = m1; name_id = n1; _ }
@@ -86,20 +74,17 @@ let lower_compare
   | 0 -> String.compare (String.lowercase n1) (String.lowercase n2)
   | lg -> lg
 
-let eq_name
-      ({ hash_module = hm1; hash_id = hn1; _ } as n1)
-      ({ hash_module = hm2; hash_id = hn2; _ } as n2) =
+let equal n1 n2 =
+  (n1.hash_id = n2.hash_id) &&
+  (n1.hash_module = n2.hash_module) &&
+  (lower_compare n1 n2 = 0)
 
-  (hn1 = hn2) && (hm1 = hm2) && (lower_compare n1 n2 = 0)
-
-let compare_name
-      ({ hash_module = hm1; hash_id = hn1; _ } as n1)
-      ({ hash_module = hm2; hash_id = hn2; _ } as n2) =
-  match Int.compare hm1 hm2 with
-  | 0 -> (match Int.compare hn1 hn2 with
-      | 0 -> lower_compare n1 n2
-      | lg -> lg)
-  | lg -> lg
+let compare n1 n2 =
+  let c1 = Int.compare n1.hash_module n2.hash_module in
+  let c2 = Int.compare n1.hash_id n2.hash_id in
+  if c1 <> 0 then c1
+  else if c2 <> 0 then c2
+  else lower_compare n1 n2
 
 let show_name { name_module = m; name_id = n; _ } =
   if String.is_empty m
@@ -334,3 +319,11 @@ let ascii_encode is_module name =
 
 let module_name_to_path name =
   ascii_encode true (show_name name)
+
+module Map = Map.Make(struct
+    type name = t                  (* outer t *)
+    type t = name                  (* inner t *)
+    let t_of_sexp = t_of_sexp
+    let sexp_of_t = sexp_of_t
+    let compare = compare
+  end)

@@ -71,7 +71,7 @@ let overlaps (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ) : unit UnifyM.t =
       else UnifyM.return ()
 
 (** Does a type have the given named arguments *)
-let match_named (tp:typ) (n:int) (named : Name.name list) : unit UnifyM.t =
+let match_named (tp:typ) (n:int) (named : Name.t list) : unit UnifyM.t =
   let rho1 = instantiate tp in
   match split_fun_type rho1 with
   | None -> UnifyM.error NoMatch
@@ -81,10 +81,10 @@ let match_named (tp:typ) (n:int) (named : Name.name list) : unit UnifyM.t =
       else
         let npars = List.drop pars n in
         let names = List.map ~f:fst npars in
-        if List.for_all ~f:(List.mem names ~equal:Name.eq_name) named then
+        if List.for_all ~f:(List.mem names ~equal:Name.equal) named then
           (* [tp | (nm,tp) <- npars, not (nm `elem` named)] *)
           let rest = List.(npars >>= fun (nm,tp) ->
-                           guard (not @@ mem named nm ~equal:Name.eq_name) >>= fun _ ->
+                           guard (not @@ mem named nm ~equal:Name.equal) >>= fun _ ->
                            return tp)
           in 
           if (List.for_all ~f:is_optional rest) then
@@ -241,10 +241,10 @@ and unify_labels (ls1:tau list) (ls2:tau list) : (tau list * tau list) UnifyM.t 
   | (_::_, []) -> return ([],ls1)
   | ([], _::_) -> return (ls2,[])
   | (l1::ll1, l2::ll2) ->
-      if (Name.compare_name (label_name l1) (label_name l2) < 0) then
+      if (Name.compare (label_name l1) (label_name l2) < 0) then
         let%bind (ds1,ds2) = unify_labels ll1 ls2 in
         return (ds1, l1::ds2)
-      else if (Name.compare_name (label_name l1) (label_name l2) > 0) then
+      else if (Name.compare (label_name l1) (label_name l2) > 0) then
         let%bind (ds1,ds2) = unify_labels ls1 ll2 in
         return (l2::ds1, ds2)
       else
@@ -261,7 +261,7 @@ and unify_pred (p1:pred) (p2:pred) : unit UnifyM.t = let open UnifyM in
       let%bind su2 = subst u2 in
       unify st2 su2
   | PredIFace(name1,ts1), PredIFace(name2, ts2)
-    when Name.Eq_name.equal name1 name2 ->
+    when Name.equal name1 name2 ->
       unifies ts1 ts2
   | _,_ -> error NoMatchPred
 
@@ -338,7 +338,7 @@ let subsume (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ)
 
 (** Does a function type match the given arguments? If the first argument 'matchSome' is true,
  ** it is considered a match even if not all arguments to the function are supplied. *)
-let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.TVSet.t) (tp:typ) (fixed:typ list) (named:(Name.name * typ) list) : unit UnifyM.t =
+let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.TVSet.t) (tp:typ) (fixed:typ list) (named:(Name.t * typ) list) : unit UnifyM.t =
   let open UnifyM in 
   let rho1 = instantiate tp in
   match split_fun_type rho1 with
@@ -350,7 +350,7 @@ let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.TVSet.t)
         let (fpars, npars) = List.split_n pars (List.length fixed) in
         mapM (fun (tpar,targ) -> subsume free (unoptional tpar) targ) (List.zip_exn (List.map ~f:snd fpars) fixed) >>
         (* subsume named parameters *)
-        mapM (fun (name,targ) -> match List.Assoc.find npars name ~equal:Name.Eq_name.equal with
+        mapM (fun (name,targ) -> match List.Assoc.find npars name ~equal:Name.equal with
             | None -> error NoMatch
             | Some tpar -> subsume free tpar (make_optional targ)) named >>
 
@@ -358,7 +358,7 @@ let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.TVSet.t)
         let rest =
           let names = (List.map ~f:fst named) in
           lazy List.(npars >>= fun (nm,tpar) ->
-                     guard @@ not (List.mem names nm ~equal:Name.Eq_name.equal) >>= fun _ ->
+                     guard @@ not (List.mem names nm ~equal:Name.equal) >>= fun _ ->
                      return tpar)
         in
         if match_some || List.for_all ~f:is_optional (Lazy.force rest) then

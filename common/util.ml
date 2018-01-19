@@ -1,6 +1,6 @@
 include Core.Fn
 
-let (<.>) f g x = f @@ g x
+let (<.>) (f:'b -> 'c) (g:'a -> 'b) (x:'a) = f @@ g x
 let (<.:>) f g x y = f @@ g x y
 let until p f =
   let rec go = function

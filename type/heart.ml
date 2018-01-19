@@ -1,17 +1,17 @@
 open Core
 open Common
 
-type tname = Name.name * Type.typ 
+type tname = Name.t * Type.typ 
 
 type con_repr =
-  | Enum of {con_type_name : Name.name; con_tag : int}
-  | Iso of {con_type_name : Name.name; con_tag : int}
-  | Singleton of {con_type_name : Name.name; con_tag : int}
-  | Single of {con_type_name : Name.name; con_tag : int}
-  | Struct of {con_type_name : Name.name; con_tag : int}
-  | AsCons of {con_type_name : Name.name; con_as_nill: Name.name; con_tag : int}
-  | Open of {con_type_name : Name.name}
-  | Normal of {con_type_name : Name.name; con_tag : int}
+  | Enum of {con_type_name : Name.t; con_tag : int}
+  | Iso of {con_type_name : Name.t; con_tag : int}
+  | Singleton of {con_type_name : Name.t; con_tag : int}
+  | Single of {con_type_name : Name.t; con_tag : int}
+  | Struct of {con_type_name : Name.t; con_tag : int}
+  | AsCons of {con_type_name : Name.t; con_as_nill: Name.t; con_tag : int}
+  | Open of {con_type_name : Name.t}
+  | Normal of {con_type_name : Name.t; con_tag : int}
 
 type expr =
   | Lam of tname list * Type.effect * expr
@@ -68,7 +68,7 @@ and literal =
   | String of string
 
 and def = {
-  def_name : Name.name;
+  def_name : Name.t;
   def_type : Type.scheme;
   def_expr : expr;
   def_vis : Syntax.visibility;
@@ -113,7 +113,7 @@ let add_type_lambdas (pars: Type.type_var list) (e:expr) : expr = match (pars, e
   
 
 (** Create a fresh variable name with a particular prefix *)
-let fresh_name (prefix:string) : Name.name =
+let fresh_name (prefix:string) : Name.t =
   Name.create (prefix ^ "." ^ string_of_int (Unique.unique ()))
 
 module HasTypeVar_tname = struct

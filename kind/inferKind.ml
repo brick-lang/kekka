@@ -1,11 +1,12 @@
 open Core
 
 (** Inference Kind: These kinds contain meta kind-variables *)
-
 type inf_kind =
   | KIVar of Common.Id.id        (* variable *)
   | KICon of Inner.kind          (* constructor *)
   | KIApp of inf_kind * inf_kind (* application *)
+
+type inf_kgamma = inf_kind Common.Name.Map.t
 
 let inf_kind_star = KICon Inner.kind_star
 (* let inf_kind_handled = KICon Kind.kind_handled *)
@@ -74,6 +75,6 @@ type prec = Int.t
 let prec_top   = 0
 let prec_arrow = 1
 let prec_app   = 2
-let prec_app   = 3
+let prec_atom  = 3
 
 (* let pparens ctxt prec doc = if ctxt >= prec then parens doc else doc *)
