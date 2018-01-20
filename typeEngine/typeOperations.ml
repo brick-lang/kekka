@@ -84,7 +84,7 @@ and instantiate_ex_fl (flavour:Kind.flavour) (tp:Type.typ)
 
 and pred_name (pred:Type.pred) : Expr.tname =
   let name = match pred with Type.PredSub _ -> Expr.fresh_name "sub"
-                           | Type.PredIFace (iname,_) -> Expr.fresh_name (Name.show_name iname)
+                           | Type.PredIFace (iname,_) -> Expr.fresh_name (Name.show iname)
   in (name, Type.pred_type pred)
 
 and fresh_sub_x (makeTVar:Type.type_var -> Type.typ) (flavour:Kind.flavour) (vars:Type.type_var list) : Type.type_var list * sub =

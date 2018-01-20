@@ -37,7 +37,7 @@ let safe_combine (caller:string) (xs:(Name.t * 'a) list) (ys:(Name.t * 'a) list)
   let ynames = List.map ys fst in
   let xnames = List.map xs fst in
   if List.exists xnames ~f:(List.mem ynames ~equal:Name.equal) then
-    Failure.failure ("Common.QNameMap." ^ caller ^ ": overlapping names: (" ^(List.to_string ~f:Name.show_name xnames) ^ ", " ^ (List.to_string ~f:Name.show_name ynames) ^ ")")
+    Failure.failure ("Common.QNameMap." ^ caller ^ ": overlapping names: (" ^(List.to_string ~f:Name.show xnames) ^ ", " ^ (List.to_string ~f:Name.show ynames) ^ ")")
   else xs @ ys
 
 let insert ~(name:Name.t) ~(data:'a) (m:'a t) : 'a t =

@@ -174,7 +174,7 @@ and Show_pred : BasicClasses.Show with type t = pred = struct
   let show = function
     | PredSub (t1,t2) -> Printf.sprintf "PredSub (%s,%s)" (Show_typ.show t1) (Show_typ.show t2)
     | PredIFace (n,ts) ->
-        Printf.sprintf "PredIFace (%s,%s)" (Name.show_name n) (List.to_string ts ~f:Show_typ.show)
+        Printf.sprintf "PredIFace (%s,%s)" (Name.show n) (List.to_string ts ~f:Show_typ.show)
 end
 
 and Show_scheme : BasicClasses.Show with type t = scheme = struct
@@ -226,13 +226,13 @@ end
 and Show_type_con : BasicClasses.Show with type t = type_con = struct
   type t = type_con
   let show s = Printf.sprintf "{ type_con_name : %s; type_con_kind : %s }"
-                 (Name.show_name s.type_con_name) (Kind.Show_kind.show s.type_con_kind)
+                 (Name.show s.type_con_name) (Kind.Show_kind.show s.type_con_kind)
 end
 
 and Show_type_syn : BasicClasses.Show with type t = type_syn = struct
   type t = type_syn
   let show s = Printf.sprintf "{ type_syn_name : %s; type_syn_kind : %s; type_syn_rank : %s; type_syn_info : %s }"
-                 (Name.show_name s.type_syn_name) (Kind.Show_kind.show s.type_syn_kind)
+                 (Name.show s.type_syn_name) (Kind.Show_kind.show s.type_syn_kind)
                  (string_of_int s.type_syn_rank)
                  (match s.type_syn_info with None -> "None"
                                            | Some i -> "("^ Show_syn_info.show i ^")")
@@ -241,7 +241,7 @@ end
 and Show_syn_info : BasicClasses.Show with type t = syn_info = struct
   type t = syn_info
   let show s = Printf.sprintf "{ name : %s; kind : %s; params : %s; typ : %s; rank : %s; doc : %s }"
-                 (Name.show_name s.syn_info_name) (Kind.Show_kind.show s.syn_info_kind)
+                 (Name.show s.syn_info_name) (Kind.Show_kind.show s.syn_info_kind)
                  (List.to_string s.syn_info_params ~f:(fun e -> Show_type_var.show e))
                  (Show_typ.show s.syn_info_typ) (string_of_int s.syn_info_rank)
                  s.syn_info_doc
@@ -266,7 +266,7 @@ module Ord_flavour = struct
     | Bound  -> (match y with Bound -> 0 | _ -> 1)
 end
 
-let show_con_info (info:con_info) = Name.show_name info.con_info_name
+let show_con_info (info:con_info) = Name.show info.con_info_name
 
 let pp_con_info fmt info = Format.pp_print_string fmt @@ show_con_info info
 

@@ -82,9 +82,9 @@ let show_type_var { Heart.Type.type_var_id=name ; Heart.Type.type_var_kind=kind;
 let rec show_tp =
   let open Heart.Type in function
     | Heart.Type.TVar tvar -> show_type_var tvar
-    | Heart.Type.TCon tcon -> Name.show_name tcon.type_con_name ^ " : " ^ Heart.Kind.Show_kind.show tcon.type_con_kind
+    | Heart.Type.TCon tcon -> Name.show tcon.type_con_name ^ " : " ^ Heart.Kind.Show_kind.show tcon.type_con_kind
     | TApp(tp,args)  -> show_tp tp ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">"
-    | TSyn(syn,args,body) -> "(syn:" ^ Name.show_name syn.type_syn_name ^ " : " ^ Heart.Kind.Show_kind.show syn.type_syn_kind
+    | TSyn(syn,args,body) -> "(syn:" ^ Name.show syn.type_syn_name ^ " : " ^ Heart.Kind.Show_kind.show syn.type_syn_kind
                              ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">" ^ "[" ^ show_tp body ^ "])"
     | _ -> "?"
 

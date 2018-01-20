@@ -10,7 +10,7 @@ open Util
  * Uses a hash to speed up comparisons. The hash is constructed
  * such that they can be compared too. (h1 > h2 => name1 > name2)
  * The hash is case-insensitive, just like comparisons on names.
- * Use 'name_case_equal' for case-sensitive comparisons.
+ * Use 'case_equal' for case-sensitive comparisons.
 *)
 type t =  {
   name_module : string;
@@ -44,7 +44,7 @@ let t_of_sexp s =
     hash_id     = snd (ps ss is a.(3));
   }
 
-let name_case_equal name1 name2 =
+let case_equal name1 name2 =
   (name1.name_module = name2.name_module) &&
   (name1.name_id = name2.name_id)
 
@@ -54,8 +54,8 @@ let is_same_namespace name1 name2 =
     (Char.is_uppercase name1.name_id.[0]) = (Char.is_uppercase name2.name_id.[0])
   else true
 
-let name_case_overlap name1 name2 =
-  (not @@ name_case_equal name1 name2) && (is_same_namespace name1 name2)
+let case_overlap name1 name2 =
+  (not @@ case_equal name1 name2) && (is_same_namespace name1 name2)
 
 let lower_compare n1 n2 =
   match String.compare (String.lowercase n1.name_module) (String.lowercase n2.name_module) with
@@ -74,7 +74,7 @@ let compare n1 n2 =
   else if c2 <> 0 then c2
   else lower_compare n1 n2
 
-let show_name { name_module = m; name_id = n; _ } =
+let show { name_module = m; name_id = n; _ } =
   if String.is_empty m then
     n
   else
@@ -84,7 +84,7 @@ let show_name { name_module = m; name_id = n; _ } =
                else n)
 
 (** Show quotes around the name *)
-let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show_name name) ^ "\"")
+let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show name) ^ "\"")
 
 let new_qualified m n =
   let string_take i s = s |> String.to_list |> Util.flip (List.take) i |> String.of_char_list in
@@ -105,7 +105,7 @@ let qualify
      (String.is_empty x && m = y) then
     { name_module = m; hash_module = hm; name_id = n; hash_id = hn }
   else
-    failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)" (show_name n1) (show_name n2) ()
+    failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)" (show n1) (show n2) ()
 
 let unqualify { name_id = n; hash_id = hn; _ } =
   { name_module = ""; hash_module = 0; name_id = n; hash_id = hn }
@@ -123,10 +123,10 @@ let qualifier { name_module = m; hash_module = hm; _} =
 let rec split_module_name name =
   if (is_qualified name) then
     split_module_name (qualifier name)
-  else List.map ~f:create @@ String.split ~on:'/' (show_name name)
+  else List.map ~f:create @@ String.split ~on:'/' (show name)
 
 let unsplit_module_name xs =
-  create @@ String.concat ?sep:(Some "/") (List.map ~f:show_name xs)
+  create @@ String.concat ?sep:(Some "/") (List.map ~f:show xs)
 
 
 (**************************************************
@@ -303,7 +303,7 @@ let ascii_encode is_module name =
 
 
 let module_name_to_path name =
-  ascii_encode true (show_name name)
+  ascii_encode true (show name)
 
 module Map = struct
   include Map.Make(struct

@@ -16,7 +16,7 @@ end
 
 module Show_kind_con = struct
   type t = kind_con
-  let show = Name.show_name
+  let show = Name.show
 end
 
 (** Kinds *)

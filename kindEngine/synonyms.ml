@@ -19,7 +19,7 @@ let lookup (name:Name.t) (map:t) : Type.syn_info option = Name.Map.find map name
 let compose (m1:t) (m2:t) : t = Name.Map.union m1 m2
 let find (name:Name.t) (syn:t) =
   match lookup name syn with
-  | None -> Failure.failure ("KindEngine.Synonyms.find: unknown type synonym:" ^ Name.show_name name)
+  | None -> Failure.failure ("KindEngine.Synonyms.find: unknown type synonym:" ^ Name.show name)
   | Some x -> x
 
 let filter (mod_name:Name.t) (s:t) =
