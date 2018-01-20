@@ -118,7 +118,7 @@ let open_effect_expr
   let b : type_var = { type_var_id = -2; type_var_kind = Kind.kind_effect; type_var_flavour = Bound } in
   (* forall a b. fun(x:tp_from)-> tp_to[total] *)
   let tp_open : typ = TForall([a;b], [], TFun([(Name.create "x", tp_from)], Type.type_total, tp_to)) in
-  let var_open : expr = Var { var_name = (Name_prim.name_effect_open, tp_open)
+  let var_open : expr = Var { var_name = (Name.effect_open, tp_open)
                             ; var_info = (InfoExternal [(Default, "#1")])}
   in
   App ((TypeApp(var_open, [eff_from; eff_to])), [expr])

@@ -289,7 +289,7 @@ let rec entails (skolems:TypeVar.TVSet.t) (known:evidence list) = function
                (List.map ~f:(fun e -> e.ev_pred) evs) ->
       UnifyM.return (evs,id)
   | ev::evs -> match ev.ev_pred with
-    | PredIFace(name,[_;_;_]) when name = Name_prim.name_pred_heap_div -> (* can always be solved *)
+    | PredIFace(name,[_;_;_]) when name = Name.pred_heap_div -> (* can always be solved *)
         entails skolems known evs
     | _ -> UnifyM.error NoEntail
              

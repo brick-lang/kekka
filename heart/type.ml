@@ -433,7 +433,7 @@ let rec is_Fun tp =
    Primitive types
  ****************************************************)
 
-let tcon_int = { type_con_name = Name_prim.name_tp_int; type_con_kind = Kind.kind_star }
+let tcon_int = { type_con_name = Name.tp_int; type_con_kind = Kind.kind_star }
 
 (** Type of integers (@Int@) *)
 let type_int : tau = TCon(tcon_int)
@@ -443,9 +443,9 @@ let is_type_int = function
   | _        -> false
 
 (** Type of floats *)
-let type_float : tau = TCon({ type_con_name = Name_prim.name_tp_float; type_con_kind = Kind.kind_star})
+let type_float : tau = TCon({ type_con_name = Name.tp_float; type_con_kind = Kind.kind_star})
 
-let tcon_char = { type_con_name = Name_prim.name_tp_char; type_con_kind = Kind.kind_star}
+let tcon_char = { type_con_name = Name.tp_char; type_con_kind = Kind.kind_star}
 
 (** Type of characters *)
 let type_char : tau = TCon(tcon_char)
@@ -454,7 +454,7 @@ let is_type_char = function
   | TCon(tc) -> tc = tcon_char
   | _        -> false
 
-let tcon_string = { type_con_name = Name_prim.name_tp_string; type_con_kind = Kind.kind_star};;
+let tcon_string = { type_con_name = Name.tp_string; type_con_kind = Kind.kind_star};;
 
 (** Type of strings *)
 let type_string : tau = TCon(tcon_string)
@@ -462,30 +462,30 @@ let type_string : tau = TCon(tcon_string)
 let label_name (tp : tau) : Name.t =
   match expand_syn tp with
   | TCon(tc) -> tc.type_con_name
-  | TApp(TCon(tc),_) -> Failure.assertion "non-expanded type synonym used as a label" (tc.type_con_name <> Name_prim.name_effect_extend) tc.type_con_name
+  | TApp(TCon(tc),_) -> Failure.assertion "non-expanded type synonym used as a label" (tc.type_con_name <> Name.effect_extend) tc.type_con_name
   | _                -> Failure.failure "Type.Unify.label_name: label is not a constant"
 
 let effect_empty : tau =
-  TCon({ type_con_name = Name_prim.name_effect_empty; type_con_kind = Kind.kind_effect })
+  TCon({ type_con_name = Name.effect_empty; type_con_kind = Kind.kind_effect })
 
 let is_effect_empty (tp : tau) : bool =
   match expand_syn tp with
-  | TCon tc -> tc.type_con_name = Name_prim.name_effect_empty
+  | TCon tc -> tc.type_con_name = Name.effect_empty
   | _       -> false
 
 let tcon_effect_extend : type_con =
-  { type_con_name = Name_prim.name_effect_extend; type_con_kind = (Kind.kind_fun Kind.kind_label (Kind.kind_fun Kind.kind_effect Kind.kind_effect)) }
+  { type_con_name = Name.effect_extend; type_con_kind = (Kind.kind_fun Kind.kind_label (Kind.kind_fun Kind.kind_effect Kind.kind_effect)) }
 
 let rec extract_effect_extend (t : tau) : tau list * tau =
   let extract_label (l : tau) : tau list =
     match expand_syn l with
-    | TApp(TCon(tc),[_;e]) when tc.type_con_name = Name_prim.name_effect_extend ->
+    | TApp(TCon(tc),[_;e]) when tc.type_con_name = Name.effect_extend ->
         let (ls,tl) = extract_effect_extend l in
         Failure.assertion "label was not a fixed effect type alias" (is_effect_fixed tl) ls
     | _ -> [l]
   in
   match expand_syn t with
-  | TApp(TCon(tc),[l;e]) when tc.type_con_name = Name_prim.name_effect_extend ->
+  | TApp(TCon(tc),[l;e]) when tc.type_con_name = Name.effect_extend ->
       let (ls,tl) = extract_effect_extend e in
       let ls0 = extract_label l in
       (ls0 @ ls, tl)
@@ -522,7 +522,7 @@ let effect_fixed (labels : tau list) : tau = effect_extends labels effect_empty
 (*   List.fold_right ~f:effect_extend_no_dup ~init:eff labels *)
 
 let rec shallow_extract_effect_extend : tau -> tau list * tau = function
-  | TApp(TCon(tc),[l;e]) when tc.type_con_name = Name_prim.name_effect_extend ->
+  | TApp(TCon(tc),[l;e]) when tc.type_con_name = Name.effect_extend ->
       let (ls,tl) = shallow_extract_effect_extend e in
       (l::ls, tl)
   | t -> ([],t)
@@ -573,7 +573,7 @@ let minimal_form : typ -> typ = function
   | TSyn(syn,args,t)      -> canonical_form t
   | TForall(vars,preds,t) -> TForall(vars,preds,canonical_form t)
   | TApp(t,ts)            -> TApp(canonical_form t, List.map ~f:canonical_form ts)
-  | TFun(args,eff,res)    -> TFun(List.map ~f:(fun (_,t) -> (Name_prim.name_null, canonical_form t)) args,
+  | TFun(args,eff,res)    -> TFun(List.map ~f:(fun (_,t) -> (Name.null, canonical_form t)) args,
                                   (order_effect @@ canonical_form eff),
                                   (canonical_form res))
   | tp -> tp
@@ -585,9 +585,9 @@ let minimal_form : typ -> typ = function
 let single (name : Name.t) : effect =
   effect_extend (TCon { type_con_name = name; type_con_kind = Kind.kind_effect }) effect_empty
 
-let type_divergent : tau = single Name_prim.name_tp_div
+let type_divergent : tau = single Name.tp_div
 
-let tcon_total = { type_con_name = Name_prim.name_effect_empty; type_con_kind = Kind.kind_effect }
+let tcon_total = { type_con_name = Name.effect_empty; type_con_kind = Kind.kind_effect }
 
 let type_total : tau = TCon tcon_total
 
@@ -595,18 +595,18 @@ let is_type_total : tau -> bool = function
   | TCon tc -> tc = tcon_total
   | _       -> false
 
-let type_partial : tau = single Name_prim.name_tp_partial
+let type_partial : tau = single Name.tp_partial
 
 let type_pure : tau = effect_fixed [type_partial; type_divergent]
 
-let tcon_bool : type_con = { type_con_name = Name_prim.name_tp_bool; type_con_kind = Kind.kind_star }
+let tcon_bool : type_con = { type_con_name = Name.tp_bool; type_con_kind = Kind.kind_star }
 let type_bool : tau = TCon tcon_bool
 
 let is_type_bool : tau -> bool = function
   | TCon tc -> tc = tcon_bool
   | _       -> false
 
-let tcon_unit : type_con = { type_con_name = Name_prim.name_tp_unit; type_con_kind = Kind.kind_star }
+let tcon_unit : type_con = { type_con_name = Name.tp_unit; type_con_kind = Kind.kind_star }
 let type_unit : tau  = TCon tcon_unit
 
 let is_type_unit : tau -> bool = function
@@ -614,7 +614,7 @@ let is_type_unit : tau -> bool = function
   | _       -> false
 
 let tcon_list : type_con = {
-  type_con_name = Name_prim.name_tp_list;
+  type_con_name = Name.tp_list;
   type_con_kind = (Kind.kind_fun Kind.kind_star Kind.kind_star)
 }
 
@@ -631,13 +631,13 @@ let type_app t ts =
   | (TApp(t1,ts0),_) -> TApp(t1,(ts0 @ ts))
   | (_,_)            -> TApp(t,ts)
 
-let type_void : tau = TCon { type_con_name = Name_prim.name_tp_void; type_con_kind = Kind.kind_star }
+let type_void : tau = TCon { type_con_name = Name.tp_void; type_con_kind = Kind.kind_star }
 
 let type_tuple (n : int) : tau =
-  TCon { type_con_name = (Name_prim.name_tuple n); type_con_kind = (Kind.kind_arrow_n n)}
+  TCon { type_con_name = (Name.tuple n); type_con_kind = (Kind.kind_arrow_n n)}
 
 let tcon_optional : type_con = {
-  type_con_name = Name_prim.name_tp_optional;
+  type_con_name = Name.tp_optional;
   type_con_kind = (Kind.kind_fun Kind.kind_star Kind.kind_star)
 }
 

@@ -2,14 +2,6 @@ open Core
 open BasicClasses
 open Util
 
-(* let implode = List.fold_right ~init: "" ~f:(fun c cs -> (Char.to_string c) ^ cs) *)
-let implode l =
-  let result = String.create (List.length l) in
-  let rec imp i = function
-    | [] -> result
-    | c :: l -> result.[i] <- c; imp (i + 1) l in
-  imp 0 l;;
-
 (*********************************
  * Names
  *********************************)
@@ -52,11 +44,9 @@ let t_of_sexp s =
     hash_id     = snd (ps ss is a.(3));
   }
 
-let name_case_equal
-      { name_module = m1; name_id = n1; _ }
-      { name_module = m2; name_id = n2; _ }
-  =
-  (m1 = m2) && (n1 = n2)
+let name_case_equal name1 name2 =
+  (name1.name_module = name2.name_module) &&
+  (name1.name_id = name2.name_id)
 
 (* Checks whether both names are in the same namespace *)
 let is_same_namespace name1 name2 =
@@ -67,11 +57,9 @@ let is_same_namespace name1 name2 =
 let name_case_overlap name1 name2 =
   (not @@ name_case_equal name1 name2) && (is_same_namespace name1 name2)
 
-let lower_compare
-      { name_module = m1; name_id = n1; _ }
-      { name_module = m2; name_id = n2; _ } =
-  match String.compare (String.lowercase m1) (String.lowercase m2) with
-  | 0 -> String.compare (String.lowercase n1) (String.lowercase n2)
+let lower_compare n1 n2 =
+  match String.compare (String.lowercase n1.name_module) (String.lowercase n2.name_module) with
+  | 0 -> String.compare (String.lowercase n1.name_id) (String.lowercase n2.name_id)
   | lg -> lg
 
 let equal n1 n2 =
@@ -87,13 +75,13 @@ let compare n1 n2 =
   else lower_compare n1 n2
 
 let show_name { name_module = m; name_id = n; _ } =
-  if String.is_empty m
-  then n
-  else m ^ "/" ^
-       let c = String.get m 0 in (* We're guranteed non-zero length *)
-       if not (Char.is_alpha c || c = '_' || c ='(') then
-         "(" ^ n ^ ")"
-       else n
+  if String.is_empty m then
+    n
+  else
+    m ^ "/" ^ (let c = String.get m 0 in (* We're guranteed non-zero length *)
+               if not (Char.is_alpha c || c = '_' || c ='(') then
+                 "(" ^ n ^ ")"
+               else n)
 
 (** Show quotes around the name *)
 let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show_name name) ^ "\"")
@@ -110,14 +98,14 @@ let nil = create ""
 
 let is_nil { name_module = m; name_id = n; _ } = String.is_empty n
 
-let qualify ({ name_module = x; name_id = m; hash_id = hm; _ } as n1)
-      ({ name_module = y; name_id = n; hash_id = hn; _ } as n2) =
-  if ((String.is_empty x) && (String.is_empty y)) ||
-     ((String.is_empty x) && (m = y)) then
+let qualify
+      ({ name_module = x; name_id = m; hash_id = hm; _} as n1)
+      ({ name_module = y; name_id = n; hash_id = hn; _} as n2) =
+  if (String.is_empty x && String.is_empty y) ||
+     (String.is_empty x && m = y) then
     { name_module = m; hash_module = hm; name_id = n; hash_id = hn }
   else
-    failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)"
-      (show_name n1) (show_name n2) ()
+    failwithf "Common.Name.qualify: Cannot use qualify on qualified names: (%s, %s)" (show_name n1) (show_name n2) ()
 
 let unqualify { name_id = n; hash_id = hn; _ } =
   { name_module = ""; hash_module = 0; name_id = n; hash_id = hn }
@@ -216,7 +204,7 @@ let split_camel s =
           else (c::(all_but_last pre2)) :: split_camel_list ((List.last_exn pre2)::post2)
         else (c::pre) :: split_camel_list post
   in
-  String.to_list s |> split_camel_list |> List.map ~f:implode
+  String.to_list s |> split_camel_list |> List.map ~f:String.of_char_list
 
 
 let camel_to_dash s =
@@ -240,7 +228,7 @@ let show_hex len i =
     else m::(hex_digits d)
   in
   let hexs = List.map ~f:show_hex_char (List.rev @@ hex_digits i) in
-  implode @@ List.init (len - (List.length hexs)) ~f:(fun _ -> '0') @ hexs
+  String.of_char_list @@ List.init (len - (List.length hexs)) ~f:(fun _ -> '0') @ hexs
 
 (**************************************************
  * Ascii encode a name
@@ -289,7 +277,7 @@ let ascii_encode is_module name =
   in
   let encode_chars s =
     let (dots,rest) = List.split_while ~f:(fun c -> c = '.') (String.to_list s) in
-    implode @@ (List.map ~f:(fun _ -> '_') dots) @ (List.concat_map ~f:encode_char rest)
+    String.of_char_list @@ (List.map ~f:(fun _ -> '_') dots) @ (List.concat_map ~f:encode_char rest)
   in
   if String.length name > 0 && Char.is_alphanum (String.get name 0) then
     encode_chars name
@@ -309,11 +297,8 @@ let ascii_encode is_module name =
     | _       ->
         (* I hate OCaml string matching so much *)
         match String.to_list name with
-        | '.'::'c'::'o'::'n'::' '::cs ->
-            (* trace ("con name: " ^ name) .. *) (* For debugging *)
-            "_con_" ^ encode_chars (implode cs)
-        | '.'::'t'::'y'::'p'::'e'::' '::cs ->
-            "_type_" ^ encode_chars (implode cs)
+        | '.'::'c'::'o'::'n'::' '::cs      ->  "_con_" ^ encode_chars (String.of_char_list cs)
+        | '.'::'t'::'y'::'p'::'e'::' '::cs ->  "_type_" ^ encode_chars (String.of_char_list cs)
         | _ -> encode_chars name
 
 
@@ -329,8 +314,114 @@ module Map = struct
     let compare = compare
   end)
 
-  (* left-biased union *)
+  (* left-biased union(s) *)
   let union m1 m2 =
-    let m1_vals = to_alist m1 in
-    List.fold_left m1_vals ~f:(fun m (k,v) -> add m ~key:k ~data:v) ~init:m2
+    merge m1 m2 ~f:(fun ~key -> function `Both(l,r) -> Some l | `Left l -> Some l | `Right r -> Some r)
+
+  let rec union_list = function
+    | [] -> empty
+    | x::[] -> x
+    | x::ys -> union x (union_list ys)
 end
+
+
+(***************************************************
+ * Primitives (originally in NamePrim) 
+ ***************************************************)
+let system_core = create "std/core"
+let core = create "core"
+let prelude_name s = qualify system_core @@ create s
+
+(* Special *)
+let expr = create ".expr"
+let typ = create ".type"
+let interactive_module = create "interactive"
+let interactive = create "interactive"
+let main = create "main"
+let copy = create ".copy"
+let op_expr = create ".opexpr"
+
+(* Primitive operations *)
+let if_ = create "if"
+let case = create "case"
+let unit = create "()"
+let pred_heap_div = prelude_name "hdiv"
+let return = prelude_name ".return"
+let trace = prelude_name "trace"
+let log = prelude_name "log"
+let effect_open = create ".open"
+
+(* Primitive constructors *)
+let true_ = prelude_name "True"
+let false_ = prelude_name "False"
+
+let just = prelude_name "Just"
+let nothing = prelude_name "Nothing"
+
+let optional = prelude_name "Optional"
+let optional_none = prelude_name "None"
+let tp_optional = prelude_name "optional"
+
+(* Lists *)
+let null = prelude_name "Nil"
+let cons = prelude_name "Cons"
+let enum_from_to = prelude_name "enumFromTo"
+let enum_from_then_to = prelude_name "enumFromThenTo"
+let tp_list = prelude_name "list"
+
+(* Primitive type constructors *)
+let effect_empty = prelude_name "<>"
+let effect_extend = prelude_name "<|>"
+let effect_append = create ".<+>"
+
+let tp_bool    = prelude_name "bool"
+let tp_int     = prelude_name "int"
+let tp_float   = prelude_name "double"
+let tp_char    = prelude_name "char"
+let tp_string  = prelude_name "string"
+let tp_any     = prelude_name "any"
+
+let tp_io      = prelude_name "io"
+let tp_unit    = prelude_name "()"
+let tp_ref     = prelude_name "ref"
+let ref_       = prelude_name "ref"
+
+let tp_total   = prelude_name "total"
+let tp_partial = prelude_name "exn"
+let tp_div     = prelude_name "div"
+let tp_pure    = prelude_name "pure"
+
+let tp_alloc   = prelude_name "alloc"
+let tp_read    = prelude_name "read"
+let tp_write   = prelude_name "write"
+let tp_st      = prelude_name "st"
+
+let tp_void    = prelude_name "void"
+
+let tp_async   = prelude_name "async"
+let tp_exception = prelude_name "exception"
+
+
+let tuple n = prelude_name ("(" ^ String.make (n - 1) ',' ^ ")")
+let%test _ = String.equal "()" (tuple 1).name_id
+let%test _ = String.equal "(,,,)" (tuple 4).name_id
+
+let is_tuple (name : t) =
+  let s = String.to_list name.name_id in
+  (name.name_module) = (system_core.name_id) &&
+  (List.length s) >= 2 &&
+  (List.hd_exn s) = '(' && (List.last_exn s) = ')' &&
+  List.for_all ~f:((=) ',') (List.tl_exn (List.rev @@ List.tl_exn @@ List.rev s))
+
+let%test _ = is_tuple { name_module = system_core.name_id;
+                        name_id = "(,,,,,,,)";
+                        hash_id = 0; hash_module = 0 }
+
+
+(* Primitive kind constructors *)
+let kind_star = create "V"
+let kind_label = create "X"
+let kind_fun = create "->"
+let kind_pred = create "P"
+let kind_effect = create "E"
+let kind_heap = create "H"

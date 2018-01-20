@@ -29,7 +29,7 @@ let to_list (syns:t) : Type.syn_info list = List.map ~f:snd (Name.Map.to_alist s
 (* let pretty (syns:t) = *)
 
 (** Extract synonym environment from core program *)
-(* let extract_synonyms core = Name.Map.union *)
+let extract_synonyms core = assert false (* TODO: implement *)
 
 let extract_type_def : Expr.TypeDef.t -> t = function
   | Expr.TypeDef.Synonym { syn_info; vis=Syntax.Public } ->

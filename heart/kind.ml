@@ -98,19 +98,19 @@ let flavour_of_sexp =
     | _             -> assert false (* TODO: make this raise an exn *)
 
 (* Kind @*@ *)
-let kind_star   : kind = KCon Name_prim.kind_star
+let kind_star   : kind = KCon Name.kind_star
 
 (* Kind @Label@ *)
-let kind_label  : kind = KCon Name_prim.kind_label
+let kind_label  : kind = KCon Name.kind_label
 
 (* Kind arrow @->@ *)
-let kind_arrow  : kind = KCon Name_prim.kind_fun
+let kind_arrow  : kind = KCon Name.kind_fun
 
-let kind_pred   : kind = KCon Name_prim.kind_pred
+let kind_pred   : kind = KCon Name.kind_pred
 
-let kind_effect : kind = KCon Name_prim.kind_effect
+let kind_effect : kind = KCon Name.kind_effect
 
-let kind_heap   : kind = KCon Name_prim.kind_heap
+let kind_heap   : kind = KCon Name.kind_heap
 
 (** Create a (kind) function from a kind to another kind *)
 let kind_fun k1 k2 : kind = KApp(KApp(kind_arrow, k1), k2)
@@ -139,11 +139,11 @@ let is_kind_effect (k:kind) : bool = phys_equal k (kind_effect)
 
 let builtin_kinds : (Name.t * kind) list =
   [
-    (Name_prim.kind_star, kind_star); (* Value *)
-    (Name_prim.kind_fun, kind_arrow); (* Type constructor *)
-    (Name_prim.kind_pred, kind_pred); (* Predicate *)
-    (Name_prim.kind_effect, kind_effect); (* Effect constants *)
-    (Name_prim.kind_label, kind_label);   (* Labels *)
-    (Name_prim.kind_heap, kind_heap) (* Heaps *)
+    (Name.kind_star, kind_star); (* Value *)
+    (Name.kind_fun, kind_arrow); (* Type constructor *)
+    (Name.kind_pred, kind_pred); (* Predicate *)
+    (Name.kind_effect, kind_effect); (* Effect constants *)
+    (Name.kind_label, kind_label);   (* Labels *)
+    (Name.kind_heap, kind_heap) (* Heaps *)
   ]
 
