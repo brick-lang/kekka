@@ -3,16 +3,43 @@ open Common
 
 type tname = Name.t * Type.typ 
 
-type con_repr =
-  | Enum of {con_type_name : Name.t; con_tag : int}
-  | Iso of {con_type_name : Name.t; con_tag : int}
-  | Singleton of {con_type_name : Name.t; con_tag : int}
-  | Single of {con_type_name : Name.t; con_tag : int}
-  | Struct of {con_type_name : Name.t; con_tag : int}
-  | AsCons of {con_type_name : Name.t; con_as_nill: Name.t; con_tag : int}
-  | Open of {con_type_name : Name.t}
-  | Normal of {con_type_name : Name.t; con_tag : int}
+(************************************************
+ * Type definitions
+ ************************************************)
 
+module TypeDef = struct
+  type t =
+    | Synonym of { syn_info : Type.syn_info;
+                   vis      : Syntax.visibility }
+
+    | Data    of { data_info : Type.data_info;
+                   vis       : Syntax.visibility;
+                   con_vis   : Syntax.visibility list;
+                   is_extend : bool } (* true if this is an extension of the datatype *)
+  type group  = t list
+  type groups = group list
+end
+
+(************************************************
+ * Data representation
+ ************************************************)
+type con_repr =
+  | ConEnum      of {con_type_name : Name.t; con_tag : int} (* part of enumeration (none has fields) *)
+  | ConIso       of {con_type_name : Name.t; con_tag : int} (* one constructor with one field *)
+  | ConSingleton of {con_type_name : Name.t; con_tag : int} (* the only constructor without fields *)
+  | ConSingle    of {con_type_name : Name.t; con_tag : int} (* there is only one constructor  *)
+  | ConStruct    of {con_type_name : Name.t; con_tag : int} (* constructor as value type *)
+  | ConAsCons    of {con_type_name : Name.t; con_tag : int; (* constructor is the cons node of a list-like datatype  (may have one or more fields) *)
+                     con_as_nil: Name.t } 
+  | ConOpen      of {con_type_name : Name.t}                (* constructor of open data type *)
+  | ConNormal    of {con_type_name : Name.t; con_tag : int} (* a regular constructor *)
+
+
+(****************************************************************************
+ * Expressions
+ *
+ * Since this is System-F, all binding sites are annotated with their type. 
+ ****************************************************************************)
 type expr =
   | Lam of tname list * Type.effect * expr
 

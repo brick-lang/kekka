@@ -1,4 +1,4 @@
 (library
  ((name kekka)
   (public_name kekka)
-  (libraries (core typeEngine))))
+  (libraries (core kindEngine typeEngine))))

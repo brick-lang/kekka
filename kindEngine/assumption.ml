@@ -3,7 +3,7 @@ open Common
 open Common.Util
 
 (* Kind assumptions *)
-type kgamma = Inner.kind QNameMap.t
+type kgamma = Heart.Kind.kind QNameMap.t
 
 let empty  = QNameMap.empty
 let single = QNameMap.single
@@ -16,7 +16,7 @@ let lookup_q = QNameMap.lookup_q (* Lookup a fq-name *)
 let find ctxt name kg = match lookup ctxt name kg with
   | QNameMap.Found(qname,scheme) -> (qname,scheme)
   | _ -> Failure.failure ("Kind.Assumption.kgammaFind: unbound type '" ^ Name.show_name name ^ "' in " ^
-                          List.to_string ~f:(fun (k,v) -> "(" ^ Name.show_name k ^ ") => " ^ Inner.Show_kind.show v) @@ QNameMap.to_alist kg)
+                          List.to_string ~f:(fun (k,v) -> "(" ^ Name.show_name k ^ ") => " ^ Heart.Kind.Show_kind.show v) @@ QNameMap.to_alist kg)
 
 let to_list kg = List.sort ~cmp:(fun (n1,_) (n2,_) -> Name.compare n1 n2) @@ QNameMap.to_alist kg
 let filter mod_name = QNameMap.filter_names ~f:(Name.equal mod_name <.> Name.qualifier)

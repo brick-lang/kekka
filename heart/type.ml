@@ -144,13 +144,13 @@ and con_info = {
 
 (** A type synonym is quantified by type parameters *)
 and syn_info = {
-  name   : Name.t;
-  kind   : Kind.kind;
-  params : type_var list;        (** parameters *)
-  typ    : typ;                  (** result type *)
-  rank   : synonym_rank;
-  (* range  : range; *)
-  doc    : string;
+  syn_info_name   : Name.t;
+  syn_info_kind   : Kind.kind;
+  syn_info_params : type_var list;        (** parameters *)
+  syn_info_typ    : typ;                  (** result type *)
+  syn_info_rank   : synonym_rank;
+  (* syn_info_range  : range; *)
+  syn_info_doc    : string;
 }
 
 open Core
@@ -241,10 +241,10 @@ end
 and Show_syn_info : BasicClasses.Show with type t = syn_info = struct
   type t = syn_info
   let show s = Printf.sprintf "{ name : %s; kind : %s; params : %s; typ : %s; rank : %s; doc : %s }"
-                 (Name.show_name s.name) (Kind.Show_kind.show s.kind)
-                 (* (List.to_string s.params ~f:(fun e -> show e)) *) "[params]"
-                 (Show_typ.show s.typ) (string_of_int s.rank)
-                 s.doc
+                 (Name.show_name s.syn_info_name) (Kind.Show_kind.show s.syn_info_kind)
+                 (List.to_string s.syn_info_params ~f:(fun e -> Show_type_var.show e))
+                 (Show_typ.show s.syn_info_typ) (string_of_int s.syn_info_rank)
+                 s.syn_info_doc
 end
 
 module Eq_flavour : BasicClasses.Eq with type t = Kind.flavour = struct

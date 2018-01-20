@@ -3,14 +3,14 @@ open Core
 (** Inference Kind: These kinds contain meta kind-variables *)
 type inf_kind =
   | KIVar of Common.Id.id        (* variable *)
-  | KICon of Inner.kind          (* constructor *)
+  | KICon of Heart.Kind.kind     (* constructor *)
   | KIApp of inf_kind * inf_kind (* application *)
 
 type inf_kgamma = inf_kind Common.Name.Map.t
 
-let inf_kind_star = KICon Inner.kind_star
+let inf_kind_star = KICon Heart.Kind.kind_star
 (* let inf_kind_handled = KICon Kind.kind_handled *)
-let inf_kind_fun k1 k2 = KIApp( KIApp(KICon Inner.kind_arrow, k1), k2) (* (->) k1 k2 *)
+let inf_kind_fun k1 k2 = KIApp( KIApp(KICon Heart.Kind.kind_arrow, k1), k2) (* (->) k1 k2 *)
 let inf_kind_fun_n kinds k = List.fold_right ~init:k ~f:inf_kind_fun kinds
 
 (**************************************************************

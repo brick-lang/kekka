@@ -320,10 +320,17 @@ let ascii_encode is_module name =
 let module_name_to_path name =
   ascii_encode true (show_name name)
 
-module Map = Map.Make(struct
+module Map = struct
+  include Map.Make(struct
     type name = t                  (* outer t *)
     type t = name                  (* inner t *)
     let t_of_sexp = t_of_sexp
     let sexp_of_t = sexp_of_t
     let compare = compare
   end)
+
+  (* left-biased union *)
+  let union m1 m2 =
+    let m1_vals = to_alist m1 in
+    List.fold_left m1_vals ~f:(fun m (k,v) -> add m ~key:k ~data:v) ~init:m2
+end
