@@ -10,11 +10,11 @@ type tname = Name.t * Type.typ
 module TypeDef = struct
   type t =
     | Synonym of { syn_info : Type.syn_info;
-                   vis      : Syntax.visibility }
+                   vis      : Syntax.Visibility.t }
 
     | Data    of { data_info : Type.data_info;
-                   vis       : Syntax.visibility;
-                   con_vis   : Syntax.visibility list;
+                   vis       : Syntax.Visibility.t;
+                   con_vis   : Syntax.Visibility.t list;
                    is_extend : bool } (* true if this is an extension of the datatype *)
   type group  = t list
   type groups = group list
@@ -64,7 +64,7 @@ type expr =
 and var_info =
   | InfoNone
   | InfoArity of int * int      (* type-parameters-arity, parameters-arity*)
-  | InfoExternal of (Syntax.target * string) list
+  | InfoExternal of (Syntax.Target.t * string) list
 
 and branch = {
   branch_patterns : pattern list;
@@ -98,7 +98,7 @@ and def = {
   def_name : Name.t;
   def_type : Type.scheme;
   def_expr : expr;
-  def_vis : Syntax.visibility;
+  def_vis : Syntax.Visibility.t;
   (* def_sort : def_sort; *)
   (* def_name_range : range; *)
   def_doc : string;

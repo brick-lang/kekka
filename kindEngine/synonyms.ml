@@ -14,12 +14,12 @@ let create : Type.syn_info list -> t =
   Name.Map.of_alist_exn <.> List.map ~f:(fun syninfo -> syninfo.Type.syn_info_name, syninfo)
 
 let type_defs : t -> t = id
-let extend (syn_info:Type.syn_info) (m:t) : t = Name.Map.add m ~key:syn_info.Type.syn_info_name ~data:syn_info
+let extend (syn_info:Type.syn_info) (m:t) : t = Name.Map.set m ~key:syn_info.Type.syn_info_name ~data:syn_info
 let lookup (name:Name.t) (map:t) : Type.syn_info option = Name.Map.find map name
 let compose (m1:t) (m2:t) : t = Name.Map.union m1 m2
 let find (name:Name.t) (syn:t) =
   match lookup name syn with
-  | None -> Failure.failure ("KindEngine.Synonyms.find: unknown type synonym:" ^ Name.show name)
+  | None -> failwithf "KindEngine.Synonyms.find: unknown type synonym:%s" (Name.show name) ()
   | Some x -> x
 
 let filter (mod_name:Name.t) (s:t) =
@@ -32,7 +32,7 @@ let to_list (syns:t) : Type.syn_info list = List.map ~f:snd (Name.Map.to_alist s
 let extract_synonyms core = assert false (* TODO: implement *)
 
 let extract_type_def : Expr.TypeDef.t -> t = function
-  | Expr.TypeDef.Synonym { syn_info; vis=Syntax.Public } ->
+  | Expr.TypeDef.Synonym { syn_info; vis=Syntax.Visibility.Public } ->
       Name.Map.singleton syn_info.Type.syn_info_name syn_info
   | _ -> Name.Map.empty
 

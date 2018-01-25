@@ -1,14 +1,9 @@
 
-
-
-let failure msg =
-  raise (Failure("*** Internal compiler error: " ^ msg))
-
-let assertion msg test x =
-  if test then x else failure msg
+let assertwith msg test x =
+  if test then x else failwith msg
 
 let todo msg =
-  failure ("todo: " ^ msg)
+  failwith ("todo: " ^ msg)
 
-let match_failure msg =
-  failure ("unmatched pattern: " ^ msg)
+let match_fail msg =
+  failwith ("unmatched pattern: " ^ msg)

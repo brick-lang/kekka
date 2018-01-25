@@ -73,7 +73,7 @@ and infer_type = typ
  * them with '$\tau$' types.
  * Eg. $\alpha^K$ *)
 and type_var = {
-  type_var_id      : Id.id;
+  type_var_id      : Id.t;
   type_var_kind    : Kind.kind;
   type_var_flavour : Kind.flavour;
 }
@@ -115,7 +115,7 @@ and synonym_rank = int
 
 (** Data type information: name, kind, type arguments, and constructors *)
 and data_info = {
-  data_info_sort    : Syntax.data_kind;
+  data_info_sort    : Syntax.DataKind.t;
   data_info_name    : Name.t;
   data_info_kind    : Kind.kind;
   data_info_params  : type_var list;       (** arguments *)
@@ -135,7 +135,7 @@ and con_info = {
   con_info_exists       : type_var list;       (** existentials *)
   con_info_params       : (Name.t * typ) list;   (** field types *)
   con_info_type         : scheme;
-  con_info_type_sort    : Syntax.data_kind;
+  con_info_type_sort    : Syntax.DataKind.t;
   (* con_info_range        : range; *)         (** Source code position information *)
   (* con_info_param_ranges : range list; *)
   con_info_singleton    : bool;                (** is this the only constructor of this type? *)
@@ -211,7 +211,7 @@ end
 and Show_type_var : BasicClasses.Show with type t = type_var = struct
   type t = type_var
   let show s = Printf.sprintf "{ type_var_id : %s; type_var_kind : %s; type_var_flavour : %s }"
-                 (Id.Show_id.show s.type_var_id) (Kind.Show_kind.show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
+                 (Id.show s.type_var_id) (Kind.Show_kind.show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
 end
 
 and Show_flavour : BasicClasses.Show with type t = Kind.flavour = struct
@@ -462,8 +462,9 @@ let type_string : tau = TCon(tcon_string)
 let label_name (tp : tau) : Name.t =
   match expand_syn tp with
   | TCon(tc) -> tc.type_con_name
-  | TApp(TCon(tc),_) -> Failure.assertion "non-expanded type synonym used as a label" (tc.type_con_name <> Name.effect_extend) tc.type_con_name
-  | _                -> Failure.failure "Type.Unify.label_name: label is not a constant"
+  | TApp(TCon(tc),_) ->
+      Failure.assertwith "non-expanded type synonym used as a label" (tc.type_con_name <> Name.effect_extend) tc.type_con_name
+  | _ -> failwith "Type.Unify.label_name: label is not a constant"
 
 let effect_empty : tau =
   TCon({ type_con_name = Name.effect_empty; type_con_kind = Kind.kind_effect })
@@ -481,7 +482,7 @@ let rec extract_effect_extend (t : tau) : tau list * tau =
     match expand_syn l with
     | TApp(TCon(tc),[_;e]) when tc.type_con_name = Name.effect_extend ->
         let (ls,tl) = extract_effect_extend l in
-        Failure.assertion "label was not a fixed effect type alias" (is_effect_fixed tl) ls
+        Failure.assertwith "label was not a fixed effect type alias" (is_effect_fixed tl) ls
     | _ -> [l]
   in
   match expand_syn t with
@@ -549,7 +550,7 @@ let extract_ordered_effect (tp : tau) : (tau list * tau) =
   in
   let (labs,tl) = extract_effect_extend tp in
   let labss     = List.concat_map ~f:expand labs in
-  let slabs     = List.dedup @@ List.sort ~cmp:(fun l1 l2 -> Name.compare (label_name l1) (label_name l2)) labss in
+  let slabs     = List.dedup_and_sort ~compare:(fun l1 l2 -> Name.compare (label_name l1) (label_name l2)) labss in
   (slabs,tl)
 
 

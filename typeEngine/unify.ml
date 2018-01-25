@@ -52,7 +52,7 @@ end
 
 (** Do two types overlap on the argument types? Used to check for overlapping
   * definitions of overloaded identifiers. *)
-let overlaps (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ) : unit UnifyM.t =
+let overlaps (free:TypeVar.Set.t) (tp1:typ) (tp2:typ) : unit UnifyM.t =
   let rho1 = instantiate tp1 in
   let rho2 = instantiate tp2 in
   match (split_fun_type rho1, split_fun_type rho2) with
@@ -178,7 +178,7 @@ and unifies (tl1:typ list) (tl2:typ list) = let open UnifyM in match (tl1,tl2) w
       unify st su >>
       unifies ts us
 
-  | _ -> Failure.failure "Type.Unify.unifies"
+  | _ -> failwith "Type.Unify.unifies"
 
 and unify_effect (tp1:typ) (tp2:typ) = let open UnifyM in 
   let%bind (ls1, tl1) = extract_normalize_effect tp1 in
@@ -213,7 +213,7 @@ and unify_effect_var tv1 tp2  = let open UnifyM in
 
 and unify_tvar (tv:type_var) (tp:typ) : unit UnifyM.t =
   if not (is_meta tv) then
-    Failure.failure "Type.Unify.unify_tvar: called with skolem or bound variable";
+    failwith "Type.Unify.unify_tvar: called with skolem or bound variable";
 
   let etp = expand_syn tp in
   if TypeVar.tvs_member (TypeVar.tvs_filter ~f:is_meta (TypeVar.HasTypeVar_typ.ftv etp)) tv then
@@ -273,7 +273,7 @@ and unify_preds ps1 ps2 = let open UnifyM in
       let%bind sp2 = subst_pred p2 in
       unify_pred p1 p2 >>
       unify_preds ps1 ps2
-  | _,_ -> Failure.failure "Type.Unify.unify_preds"
+  | _,_ -> failwith "Type.Unify.unify_preds"
 
 (**
  * @entails skolems known preds@ returns both predicates that need to be proved
@@ -281,7 +281,7 @@ and unify_preds ps1 ps2 = let open UnifyM in
  * those in @known@. The @preds@ are entailed by
  * @known@ and predicates containing a type variable in @skolems@ must be entailed
  * completely by other predicates (not containing such skolems). *)
-let rec entails (skolems:TypeVar.TVSet.t) (known:evidence list) = function
+let rec entails (skolems:TypeVar.Set.t) (known:evidence list) = function
   | [] -> UnifyM.return ([],id)
   (* TODO: possible failure point here *)
   | evs when List.equal ~equal:Eq_pred.equal
@@ -299,7 +299,7 @@ let rec entails (skolems:TypeVar.TVSet.t) (known:evidence list) = function
  * which predicates this holds and a core transformer that needs to be applied
  * to the expressions of type $t_2$. Also returns a new type for the expect type 
  * $t_1$ where 'some' types have been properly substitude (and may be quantified) *)
-let subsume (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ)
+let subsume (free:TypeVar.Set.t) (tp1:typ) (tp2:typ)
   : (typ * evidence list * (Heart.Expr.expr -> Heart.Expr.expr)) UnifyM.t = let open UnifyM in
   (* skolemize, instantiate, and unify *)
   let (sks, evs1, rho1, core1) = skolemize_ex tp1 in
@@ -337,7 +337,7 @@ let subsume (free:TypeVar.TVSet.t) (tp1:typ) (tp2:typ)
 
 (** Does a function type match the given arguments? If the first argument 'matchSome' is true,
  ** it is considered a match even if not all arguments to the function are supplied. *)
-let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.TVSet.t) (tp:typ) (fixed:typ list) (named:(Name.t * typ) list) : unit UnifyM.t =
+let match_arguments (match_some:bool) (* (range:range) *) (free:TypeVar.Set.t) (tp:typ) (fixed:typ list) (named:(Name.t * typ) list) : unit UnifyM.t =
   let open UnifyM in 
   let rho1 = instantiate tp in
   match split_fun_type rho1 with

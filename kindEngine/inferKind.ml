@@ -2,7 +2,7 @@ open Core
 
 (** Inference Kind: These kinds contain meta kind-variables *)
 type inf_kind =
-  | KIVar of Common.Id.id        (* variable *)
+  | KIVar of Common.Id.t        (* variable *)
   | KICon of Heart.Kind.kind     (* constructor *)
   | KIApp of inf_kind * inf_kind (* application *)
 
@@ -62,7 +62,7 @@ end
 
 (* Left-biased union *)
 let ksub_union m1 m2 =
-  List.fold_left ~init:m2 ~f:(fun m (k,v) -> Id.Map.add m ~key:k ~data:v) (Id.Map.to_alist m1)
+  List.fold_left ~init:m2 ~f:(fun m (k,v) -> Id.Map.set m ~key:k ~data:v) (Id.Map.to_alist m1)
 
 (* Assumes a left-biased union (which it is) *)
 let (@@@) sub1 sub2 = ksub_union sub1 HasKindVar_ksub.(sub1 |=> sub2)

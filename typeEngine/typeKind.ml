@@ -31,7 +31,7 @@ let rec get_kind_typ =
     match (l,k) with
     | ([],_) -> k
     | ((_::rest),KApp(KApp(arr,k1),k2)) -> kind_apply rest k2
-    | (_,_) -> Failure.failure @@ "TypeKind.kind_apply: illegal kind in application? " ^ Show_kind.show k
+    | (_,_) -> Core.failwithf "TypeKind.kind_apply: illegal kind in application? %s" (Show_kind.show k) ()
   in
   let open Type in function
     | TForall(_,_,tp) -> get_kind_typ tp
@@ -43,5 +43,5 @@ let rec get_kind_typ =
     | TApp(tp,args)   -> begin
         match collect [] (get_kind_typ tp) with
         | (kres::_) -> kres
-        | _ -> Failure.failure @@ "TypeKind: illegal kind in type application? " ^ Show_kind.show (get_kind_typ tp)
+        | _ -> Core.failwithf "TypeKind: illegal kind in type application? %s" (Show_kind.show @@ get_kind_typ tp) ()
       end

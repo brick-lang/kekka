@@ -306,13 +306,17 @@ let module_name_to_path name =
   ascii_encode true (show name)
 
 module Map = struct
-  include Map.Make(struct
-    type name = t                  (* outer t *)
-    type t = name                  (* inner t *)
-    let t_of_sexp = t_of_sexp
-    let sexp_of_t = sexp_of_t
-    let compare = compare
-  end)
+  module C = Comparator.Make(struct
+      type nonrec t = t
+      let compare = compare
+      let sexp_of_t = sexp_of_t
+    end)
+  include Map.Make_using_comparator(struct
+      include C
+      type nonrec t = t
+      let t_of_sexp = t_of_sexp
+      let sexp_of_t = sexp_of_t
+   end)
 
   (* left-biased union(s) *)
   let union m1 m2 =
@@ -403,8 +407,8 @@ let tp_exception = prelude_name "exception"
 
 
 let tuple n = prelude_name ("(" ^ String.make (n - 1) ',' ^ ")")
-let%test _ = String.equal "()" (tuple 1).name_id
-let%test _ = String.equal "(,,,)" (tuple 4).name_id
+(* let%test _ = String.equal "()" (tuple 1).name_id
+ * let%test _ = String.equal "(,,,)" (tuple 4).name_id *)
 
 let is_tuple (name : t) =
   let s = String.to_list name.name_id in
@@ -413,10 +417,13 @@ let is_tuple (name : t) =
   (List.hd_exn s) = '(' && (List.last_exn s) = ')' &&
   List.for_all ~f:((=) ',') (List.tl_exn (List.rev @@ List.tl_exn @@ List.rev s))
 
-let%test _ = is_tuple { name_module = system_core.name_id;
-                        name_id = "(,,,,,,,)";
-                        hash_id = 0; hash_module = 0 }
+(* let%test _ = is_tuple { name_module = system_core.name_id;
+ *                         name_id = "(,,,,,,,)";
+ *                         hash_id = 0; hash_module = 0 } *)
 
+let to_short_module_name (name:t) : t =
+  let short = List.hd_exn @@ List.rev @@ split_module_name name in
+  if equal short core then system_core else short
 
 (* Primitive kind constructors *)
 let kind_star = create "V"

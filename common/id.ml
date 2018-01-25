@@ -1,41 +1,34 @@
 open Core
-open BasicClasses
 
 (* Types *)
 
 (** Identifiers are unique compiler generated identities *)
-type id = int
-type t = id
+type t = int
 
 (** A list of identifiers *)
-type ids = id list
+type ids = t list
 
 (** show quotes around the id *)
 let rec pp_id fmt id =
   Format.pp_print_string fmt @@ "\"" ^ (Int.to_string id) ^ "\""
 
 (** create a fresh identifier *)
-let create (i:int) : id = i
+let create (i:int) : t = i
 
-let create_from_id id = id + 1
+let create_from_id (id:t) : t = id + 1
 
 (** Generate an 'Id' with a certain base name (which is ignored) :)  *)
-let generate base_name = create
+let generate base_name (id:t) = create id
 
 (* dummy identifier *)
-let nil : id = 0
+let nil : t = 0
 
-let number (i:id) : int = i
+let number (i:t) : int = i
 
-let show_id = string_of_int
-let sexp_of_id = sexp_of_int
-let id_of_sexp = int_of_sexp
+let sexp_of_t : t -> Sexp.t = sexp_of_int
+let t_of_sexp : Sexp.t -> t = int_of_sexp
 
-(* implicit *)
-module Show_id = struct
-  type t = id
-  let show (i:id) = string_of_int i
-end
+let show (i:t) = string_of_int i
 
 module Map = Int.Map
 module Set = Int.Set

@@ -1,64 +1,67 @@
-open Core                       (* TODO: Make this Core_kernel
-                                 * and turn TVMap and TVSet into
-                                 * Map and Set*)
+open Core
 open Common
 open Common.Util
 
-(* Really fancy module magic *)
-module T = struct
-  type t = Heart.Type.type_var
-  let compare = Heart.Type.compare_type_var
-  let compare_type_var = Heart.Type.compare_type_var
-  let to_string = Heart.Type.Show_type_var.show
-  (* let pp = Type.pp_type_var *)
-  let sexp_of_t n =
-    let open Heart.Type in
-    let open Sexplib in
-    let sp = sexp_of_pair in
-    let ss = sexp_of_string in
-    sexp_of_list Fn.id ([
-        sp ss Id.sexp_of_id ("type_var_id", n.type_var_id);
-        sp ss Heart.Kind.sexp_of_kind ("type_var_kind", n.type_var_kind);
-        sp ss sexp_of_flavour ("type_var_flavor", n.type_var_flavour)
-      ])
 
-  let t_of_sexp s =
-    let open Heart.Type in
-    let open Sexplib in
-    let ps = pair_of_sexp in
-    let ss = string_of_sexp in
-    let a = array_of_sexp Fn.id s in
-    {
-      type_var_id      = snd (ps ss Id.id_of_sexp a.(0));
-      type_var_kind    = snd (ps ss Heart.Kind.kind_of_sexp a.(1));
-      type_var_flavour = snd (ps ss flavour_of_sexp a.(2));
-    }
-end
-include T
+type t = Heart.Type.type_var
+let compare = Heart.Type.compare_type_var
+let compare_type_var = Heart.Type.compare_type_var
+let to_string = Heart.Type.Show_type_var.show
+(* let pp = Type.pp_type_var *)
+let sexp_of_t n =
+  let open Heart.Type in
+  let open Sexplib in
+  let sp = sexp_of_pair in
+  let ss = sexp_of_string in
+  sexp_of_list Fn.id ([
+      sp ss Id.sexp_of_t ("type_var_id", n.type_var_id);
+      sp ss Heart.Kind.sexp_of_kind ("type_var_kind", n.type_var_kind);
+      sp ss sexp_of_flavour ("type_var_flavor", n.type_var_flavour)
+    ])
 
-module C = Comparable.Make(T)
-(* include C *)
+let t_of_sexp s =
+  let open Heart.Type in
+  let open Sexplib in
+  let ps = pair_of_sexp in
+  let ss = string_of_sexp in
+  let a = array_of_sexp Fn.id s in
+  {
+    type_var_id      = snd (ps ss Id.t_of_sexp a.(0));
+    type_var_kind    = snd (ps ss Heart.Kind.kind_of_sexp a.(1));
+    type_var_flavour = snd (ps ss flavour_of_sexp a.(2));
+  }
 
-module TVSet = Core.Set.Make_using_comparator(struct
-    include T
-    include C
+module C = Comparator.Make(struct
+    type nonrec t = t
+    let compare = compare
+    let sexp_of_t = sexp_of_t
   end)
 
-module TVMap = struct
+module Set = Core.Set.Make_using_comparator(struct
+    include C
+    type nonrec t = t
+    let t_of_sexp = t_of_sexp
+    let sexp_of_t = sexp_of_t
+  end)
+
+module Map = struct
   include Core.Map.Make_using_comparator(struct
-      include T
       include C
+      type nonrec t = t
+      let t_of_sexp = t_of_sexp
+      let sexp_of_t = sexp_of_t
     end)
+
 
   let inter_with ~f m1 m2 =
     fold m1 ~init:empty ~f:(fun ~key ~data acc ->
         match find m2 key with
-        | Some data2 -> add acc ~key:key ~data:(f data data2)
+        | Some data2 -> set acc ~key:key ~data:(f data data2)
         | None -> acc
       )
 
   (* I've only seen inter_with used with lists, so this is a better
-   * version that only cons and doesn't have to do TVMap.to_alist *)
+   * version that only cons and doesn't have to do Map.to_alist *)
   let inter_with_to_alist ~f m1 m2 =
     fold m1 ~init:[] ~f:(fun ~key ~data acc ->
         match find m2 key with
@@ -66,10 +69,14 @@ module TVMap = struct
         | None -> acc
       )
 
-  (* Left-biased union *)
+  (* left-biased union(s) *)
   let union m1 m2 =
-    let m1_vals = to_alist m1 in
-    List.fold_left m1_vals ~f:(fun m (k,v) -> add m ~key:k ~data:v) ~init:m2
+    merge m1 m2 ~f:(fun ~key -> function `Both(l,r) -> Some l | `Left l -> Some l | `Right r -> Some r)
+
+  let rec union_list = function
+    | [] -> empty
+    | x::[] -> x
+    | x::ys -> union x (union_list ys)
 end
 
 
@@ -77,7 +84,7 @@ end
  * Debugging
  ********************************************************************)
 let show_type_var { Heart.Type.type_var_id=name ; Heart.Type.type_var_kind=kind; _} =
-  Id.show_id name ^ " : " ^ Heart.Kind.Show_kind.show kind
+  Id.show name ^ " : " ^ Heart.Kind.Show_kind.show kind
 
 let rec show_tp =
   let open Heart.Type in function
@@ -92,23 +99,23 @@ let rec show_tp =
  * Type variables
  **********************************************************************)
 
-let tvs_empty = TVSet.empty
-let tvs_is_empty = TVSet.is_empty
-let tvs_single = TVSet.singleton
-let tvs_insert = Fn.flip TVSet.add
-let tvs_insert_all vars s = List.fold ~init:s ~f:TVSet.add vars
-let tvs_new = TVSet.of_list
-let tvs_list = TVSet.to_list
-let tvs_remove tvs set = List.fold tvs ~init:set ~f:TVSet.remove
-let tvs_diff = TVSet.diff
-let tvs_union = TVSet.union
-let tvs_unions tvs = List.fold tvs ~init:tvs_empty ~f:TVSet.union
-let tvs_filter = TVSet.filter
-let tvs_member = TVSet.mem
-let tvs_interset = TVSet.inter
-let tvs_disjoint = TVSet.is_empty <.:> TVSet.inter
-let tvs_common t1 t2 = not @@ TVSet.is_empty @@ TVSet.inter t1 t2
-let tvs_is_subset_of t1 t2 = TVSet.is_subset t1 ~of_:t2 (* Is first argument a subset of second? *)
+let tvs_empty = Set.empty
+let tvs_is_empty = Set.is_empty
+let tvs_single = Set.singleton
+let tvs_insert = Fn.flip Set.add
+let tvs_insert_all vars s = List.fold ~init:s ~f:Set.add vars
+let tvs_new = Set.of_list
+let tvs_list = Set.to_list
+let tvs_remove tvs set = List.fold tvs ~init:set ~f:Set.remove
+let tvs_diff = Set.diff
+let tvs_union = Set.union
+let tvs_unions tvs = List.fold tvs ~init:tvs_empty ~f:Set.union
+let tvs_filter = Set.filter
+let tvs_member = Set.mem
+let tvs_interset = Set.inter
+let tvs_disjoint = Set.is_empty <.:> Set.inter
+let tvs_common t1 t2 = not @@ Set.is_empty @@ Set.inter t1 t2
+let tvs_is_subset_of t1 t2 = Set.is_subset t1 ~of_:t2 (* Is first argument a subset of second? *)
 
 
 (***************************************************************************
@@ -144,7 +151,7 @@ let tvs_is_subset_of t1 t2 = TVSet.is_subset t1 ~of_:t2 (* Is first argument a s
    performance with strategy (2).
  ***************************************************************************)
 type tau = Heart.Type.tau       (* $\tau$ *)
-type sub = tau TVMap.t          (* \sigma:\alpha \mapsto \tau *)
+type sub = tau Map.t          (* \sigma:\alpha \mapsto \tau *)
 
 (**********************************************************************
  * Entities with type variables
@@ -156,9 +163,9 @@ module type HasTypeVar = sig
   (* Substitute type variables by $\tau$ types *)
   val substitute : sub -> t -> t
   (* Return free type variables *)
-  val ftv : t -> TVSet.t
+  val ftv : t -> Set.t
   (* Return bound type variables *)
-  val btv : t -> TVSet.t
+  val btv : t -> Set.t
 end
 
 module type HasTypeVarEx = sig
@@ -176,32 +183,32 @@ end
 
 (* TODO: inline-replace all of these with their corresponding functions *)
 
-let sub_count : sub -> int = TVMap.length
-let sub_null : sub = TVMap.empty
-let sub_is_null : sub -> bool = TVMap.is_empty
+let sub_count : sub -> int = Map.length
+let sub_null : sub = Map.empty
+let sub_is_null : sub -> bool = Map.is_empty
 let sub_new (sub : (t * tau) list) : sub =
-  Failure.assertion ("TypeVar.sub_new.KindMisMatch: " ^ (string_of_int @@ List.length sub)
-                     ^ String.concat (List.map ~f:(fun (x,t) -> "(" ^ show_type_var x ^ " |-> " ^ show_tp t ^ ")") sub))
+  Failure.assertwith (Printf.sprintf "TypeVar.sub_new.KindMisMatch: %i {%s}" (List.length sub)
+                        (String.concat @@ List.map ~f:(fun (x,t) -> Printf.sprintf "(%s |-> %s)" (show_type_var x) (show_tp t)) sub))
     (List.for_all ~f:(fun (x,t) -> Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
-    C.Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
+    Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 (** This is the set of all types in our current environment.
  * In type theory, it is denoted by $\Gamma$ *)
-let sub_dom : sub -> TVSet.t = tvs_new <.> TVMap.keys
-let sub_range : sub -> tau list = TVMap.data
-let sub_list : sub -> (Heart.Type.type_var * tau) list = TVMap.to_alist
+let sub_dom : sub -> Set.t = tvs_new <.> Map.keys
+let sub_range : sub -> tau list = Map.data
+let sub_list : sub -> (Heart.Type.type_var * tau) list = Map.to_alist
 let sub_common : sub -> sub -> (t*(tau*tau)) list =
-  TVMap.inter_with_to_alist ~f:Tuple2.create
+  Map.inter_with_to_alist ~f:Tuple2.create
 
-let sub_lookup tvar sub : tau option = TVMap.find sub tvar
-let sub_remove tvars sub : sub = List.fold tvars ~f:TVMap.remove ~init:sub
+let sub_lookup tvar sub : tau option = Map.find sub tvar
+let sub_remove tvars sub : sub = List.fold tvars ~f:Map.remove ~init:sub
 let sub_find tvar sub : tau = match sub_lookup tvar sub with
   | None -> Heart.Type.TVar tvar
   | Some tau ->
-      Failure.assertion ("Type.TypeVar.sub_find: incompatible kind: "
-                         ^ Heart.Type.Show_type_var.show tvar ^ ":"
-                         ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
-                         ^ "?" ^ ":" ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_typ tau))
+      Failure.assertwith ("Type.TypeVar.sub_find: incompatible kind: "
+                          ^ Heart.Type.Show_type_var.show tvar ^ ":"
+                          ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                          ^ "?" ^ ":" ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_typ tau))
         (Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
 
@@ -309,8 +316,8 @@ end
 
 module HasTypeVar_sub = struct
   type t = sub
-  let substitute sub (s:sub) = TVMap.map s ~f:(fun (k:tau) -> HasTypeVar_typ.substitute sub k)
-  let ftv sub = tvs_empty (* TODO: tvs_union (tvs_new (TVMap.keys sub)) (ftv (TVMap.elems sub)) *)
+  let substitute sub (s:sub) = Map.map s ~f:(fun (k:tau) -> HasTypeVar_typ.substitute sub k)
+  let ftv sub = tvs_empty (* TODO: tvs_union (tvs_new (Map.keys sub)) (ftv (Map.elems sub)) *)
   let btv _ = tvs_empty
   let (|->) sub x = if sub_is_null sub then x else substitute sub x
 end
@@ -334,13 +341,13 @@ let sub_single tvar (tau:tau) : sub =
    * ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular,
    * the IDs of built-in types such as .select must be distinct from further IDs generated
    * by the compiler. *)
-  C.Map.singleton tvar tau
-  |> Failure.assertion "Type.TypeVar.sub_single.KindMismatch" (Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
-  |> Failure.assertion ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (TVSet.mem (HasTypeVar_typ.ftv tau) tvar))
+  Map.singleton tvar tau
+  |> Failure.assertwith "Type.TypeVar.sub_single.KindMismatch" (Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
+  |> Failure.assertwith ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (Set.mem (HasTypeVar_typ.ftv tau) tvar))
 
 let sub_compose (sub1:sub) (sub2:sub) : sub =
   let open HasTypeVar_sub in
-  TVMap.union sub1 (sub1 |-> sub2)
+  Map.union sub1 (sub1 |-> sub2)
 
 let (@@@) sub1 sub2 = sub_compose sub1 sub2
 
