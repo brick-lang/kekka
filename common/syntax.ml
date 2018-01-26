@@ -54,6 +54,14 @@ module DataKind = struct
   let pp fmt dk = Format.pp_print_string fmt (show dk)
 end
 
+module DataDef = struct
+  type t = Normal | Rec | Open
+  [@@deriving eq]
+
+  let is_rec = function Normal -> false | _ -> true
+  let is_open = function Open -> true | _ -> false
+end
+
 (************************************
    Definition Kind
  ************************************)

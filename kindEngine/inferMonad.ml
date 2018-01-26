@@ -1,13 +1,14 @@
 open Core
 open Common
+open InferKind
 
-type kst = InferKind.ksub
+type kst = KSub.t
 type kenv = {
   (* cscheme : color_scheme; *)
   current_module : Name.t;
   imports : ImportMap.t;
   kgamma : Assumption.kgamma;
-  infgamma : InferKind.inf_kgamma;
+  infgamma : InfKGamma.t;
   synonyms : Synonyms.t
 }
 
@@ -36,10 +37,9 @@ let run_kind_infer module_name imports kgamma synonyms (ki:'a t) =
   let imports' = Option.value ~default:imports @@
     ImportMap.extend (Name.to_short_module_name module_name) module_name imports
   in
-  let r = ki {current_module=module_name; imports=imports'; kgamma; infgamma=Name.Map.empty; synonyms}
-            InferKind.ksub_empty
-  in 
-  r.result
+  (ki {current_module=module_name; imports=imports'; kgamma; infgamma=Name.Map.empty; synonyms}
+     KSub.empty).result
+
 
 let get_kind_env : kenv t = fun env st -> {result=env; st}
 
@@ -51,17 +51,17 @@ let get_kind_env : kenv t = fun env st -> {result=env; st}
  *   add_range_info range Warning(doc) >>
  *   fun env st -> {result=(); errors=[]; warnings=[(range,doc)]; st} *)
 
-let get_ksub : InferKind.ksub t = fun env st -> {result=st; st}
+let get_ksub : KSub.t t = fun env st -> {result=st; st}
 
-let extend_ksub (sub:InferKind.ksub) : unit t =
-  fun env st -> {result=(); st=InferKind.(sub @@@ st)}
+let extend_ksub (sub:KSub.t) : unit t =
+  fun env st -> {result=(); st=KSub.(sub @@@ st)}
 
 (**********************************************************************
  * Operations
  **********************************************************************)
 
 let fresh_kind =
-  return @@ InferKind.KIVar(Unique.unique_id "k")
+  return @@ InfKind.Var(Unique.unique_id "k")
 
 let fresh_type_var tb flavour =
   let open ConcreteSyntax.TypeBinder in
@@ -70,7 +70,7 @@ let fresh_type_var tb flavour =
 
 (* let subst x =
  *   let%bind sub = get_ksub in
- *   return InferKind.(sub |=> x) *)
+ *   return (sub |=> x) *)
 
 let get_kgamma =
   let%bind env = get_kind_env in
@@ -83,7 +83,7 @@ let get_synonyms =
 (** Extend the inference kind assumption; checks for shadowed definitions  *)
 let extend_inf_gamma tbinders (ki:'a t) : 'a t =
   let open Common.ConcreteSyntax.TypeBinder in
-  let check (infgamma:InferKind.inf_kgamma) tb =
+  let check (infgamma:InfKGamma.t) tb =
     if Name.Map.mem infgamma tb.name then
       (* add_error name_range @@ Printf.sprintf "Type %s is already defined" (Name.show tb.name) *)
       failwith (Printf.sprintf "Type %s is already defined" (Name.show tb.name))
@@ -162,7 +162,7 @@ let find_inf_kind name0 range =
           failwithf "type %s should be cased as %s." (Name.show @@ Name.unqualify name0) (Name.show @@ Name.unqualify name') ();
         if (Option.is_some mb_alias) && not (String.equal name0.Name.name_module (Name.show @@ Option.value_exn mb_alias)) then
           failwithf "module %s should be cased as %s." name0.Name.name_module (Name.show @@ Option.value_exn mb_alias) ();
-        return (qname, InferKind.KICon(kind))
+        return (qname, InfKind.Con(kind))
     | NotFound ->
         failwithf "Type %s is not defined.\n  hint: bind the variable using 'forall<%s>'?" (Name.show name) (Name.show name) ()
     | Ambiguous names ->
