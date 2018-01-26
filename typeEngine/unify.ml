@@ -147,7 +147,7 @@ let rec unify (t1:typ) (t2:typ) : unit UnifyM.t = let open UnifyM in match (t1,t
       (* replace with shared bound variables in both types
        * NOTE: assumes ordered quantifiers and ordered predicates
        * NOTE: we don't use Skolem as a Meta variable can unify with a Skolem but not with a Bound one *)
-      let vars = List.map ~f:(fun kind -> freshTVar kind Heart.Kind.Bound) kinds1 in
+      let vars = List.map ~f:(fun kind -> freshTVar kind Flavour.Bound) kinds1 in
       let sub1 = TypeVar.sub_new @@ List.zip_exn vars1 vars in
       let sub2 = TypeVar.sub_new @@ List.zip_exn vars2 vars in
       let stp1 = TypeVar.HasTypeVar_typ.(sub1 |-> tp1) in
@@ -190,11 +190,11 @@ and unify_effect (tp1:typ) (tp2:typ) = let open UnifyM in
       id1 = id2 && not (List.is_empty ds1 && List.is_empty ds2) -> error Infinite
   | _ ->
       let%bind tail1 = (if List.is_empty ds1 then return tl1 else
-                          let tv1 = freshTVar Heart.Kind.kind_effect Heart.Kind.Meta in
+                          let tv1 = freshTVar Heart.Kind.Prim.effect Flavour.Meta in
                           unify tl1 (effect_extends ds1 tv1) >> return tv1) in
       let%bind stl2 = subst tl2 in
       let%bind tail2 = (if List.is_empty ds2 then return stl2 else
-                          let tv2 = freshTVar Heart.Kind.kind_effect Heart.Kind.Meta in
+                          let tv2 = freshTVar Heart.Kind.Prim.effect Flavour.Meta in
                           unify stl2 (effect_extends ds2 tv2) >> return tv2) in
       let%bind stail1 = subst tail1 in
       unify stail1 tail2 >>
@@ -208,7 +208,7 @@ and unify_effect_var tv1 tp2  = let open UnifyM in
   | TVar tv2 when tv1 = tv2 ->  (* e ~ <div,exn|e> ~> e := <div,exn|e'> *)
       error Infinite
   | _ ->
-      (* let tv = freshTVar Heart.Kind.kind_effect Heart.Kind.Meta in *)
+      (* let tv = freshTVar Heart.Kind.t_effect Heart.Kind.Meta in *)
       unify_tvar tv1 (effect_extends ls2 tl2)
 
 and unify_tvar (tv:type_var) (tp:typ) : unit UnifyM.t =
@@ -222,8 +222,8 @@ and unify_tvar (tv:type_var) (tp:typ) : unit UnifyM.t =
     | _ -> UnifyM.error Infinite
   else
     match etp with
-    | TVar{type_var_flavour=Heart.Kind.Bound} -> UnifyM.error NoMatch (* can't unify with bound variables *)
-    | TVar({type_var_id=id2; type_var_flavour=Heart.Kind.Meta} as tv2) when tv.type_var_id <= id2 ->
+    | TVar{type_var_flavour=Flavour.Bound} -> UnifyM.error NoMatch (* can't unify with bound variables *)
+    | TVar({type_var_id=id2; type_var_flavour=Flavour.Meta} as tv2) when tv.type_var_id <= id2 ->
         if tv.type_var_id < id2 then
           unify_tvar tv2 (TVar tv)
         else
@@ -281,14 +281,14 @@ and unify_preds ps1 ps2 = let open UnifyM in
  * those in @known@. The @preds@ are entailed by
  * @known@ and predicates containing a type variable in @skolems@ must be entailed
  * completely by other predicates (not containing such skolems). *)
-let rec entails (skolems:TypeVar.Set.t) (known:evidence list) = function
+let rec entails (skolems:TypeVar.Set.t) (known:Evidence.t list) = function
   | [] -> UnifyM.return ([],id)
   (* TODO: possible failure point here *)
   | evs when List.equal ~equal:Eq_pred.equal
-               (List.map ~f:(fun e -> e.ev_pred) known)
-               (List.map ~f:(fun e -> e.ev_pred) evs) ->
+               (List.map ~f:(fun e -> e.Evidence.pred) known)
+               (List.map ~f:(fun e -> e.Evidence.pred) evs) ->
       UnifyM.return (evs,id)
-  | ev::evs -> match ev.ev_pred with
+  | ev::evs -> match ev.Evidence.pred with
     | PredIFace(name,[_;_;_]) when name = Name.pred_heap_div -> (* can always be solved *)
         entails skolems known evs
     | _ -> UnifyM.error NoEntail
@@ -300,7 +300,7 @@ let rec entails (skolems:TypeVar.Set.t) (known:evidence list) = function
  * to the expressions of type $t_2$. Also returns a new type for the expect type 
  * $t_1$ where 'some' types have been properly substitude (and may be quantified) *)
 let subsume (free:TypeVar.Set.t) (tp1:typ) (tp2:typ)
-  : (typ * evidence list * (Heart.Expr.expr -> Heart.Expr.expr)) UnifyM.t = let open UnifyM in
+  : (typ * Evidence.t list * (Heart.Expr.expr -> Heart.Expr.expr)) UnifyM.t = let open UnifyM in
   (* skolemize, instantiate, and unify *)
   let (sks, evs1, rho1, core1) = skolemize_ex tp1 in
   let (tvs, evs2, rho2, core2) = instantiate_ex tp2 in
@@ -325,7 +325,7 @@ let subsume (free:TypeVar.Set.t) (tp1:typ) (tp2:typ)
   let subx = TypeVar.(ssub @@@ subst) in
   let tp = quantify_type vars @@
     qualify_type
-      (List.map evs1 ~f:(fun {ev_pred} -> TypeVar.HasTypeVar_pred.(subx |-> ev_pred)))
+      (List.map evs1 ~f:(fun Evidence.{pred} -> TypeVar.HasTypeVar_pred.(subx |-> pred)))
       TypeVar.HasTypeVar_typ.(subx |-> rho1)
   in
   return (tp, HasTypeVar_evidence_list.(subx |-> evs_ent),

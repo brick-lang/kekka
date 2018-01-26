@@ -17,32 +17,7 @@ type t =  {
   hash_module : int;
   name_id     : string;
   hash_id     : int;
-}
-
-let sexp_of_t n =
-  let open Sexplib in
-  let sp = sexp_of_pair in
-  let ss = sexp_of_string in
-  let si = sexp_of_int in
-  sexp_of_list Fn.id ([
-      sp ss ss ("name_module", n.name_module);
-      sp ss si ("hash_module", n.hash_module);
-      sp ss ss ("name_id", n.name_id);
-      sp ss si ("hash_id", n.hash_id)
-    ])
-
-let t_of_sexp s =
-  let open Sexplib in
-  let ps = pair_of_sexp in
-  let ss = string_of_sexp in
-  let is = int_of_sexp in
-  let a = array_of_sexp Fn.id s in
-  {
-    name_module = snd (ps ss ss a.(0));
-    hash_module = snd (ps ss is a.(1));
-    name_id     = snd (ps ss ss a.(2));
-    hash_id     = snd (ps ss is a.(3));
-  }
+} [@@deriving sexp]
 
 let case_equal name1 name2 =
   (name1.name_module = name2.name_module) &&
@@ -84,7 +59,7 @@ let show { name_module = m; name_id = n; _ } =
                else n)
 
 (** Show quotes around the name *)
-let pp_name fmt name = Format.pp_print_string fmt ("\"" ^ (show name) ^ "\"")
+let pp fmt name = Format.pp_print_string fmt ("\"" ^ (show name) ^ "\"")
 
 let new_qualified m n =
   let string_take i s = s |> String.to_list |> Util.flip (List.take) i |> String.of_char_list in

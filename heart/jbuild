@@ -1,5 +1,6 @@
 (library
  ((name heart)
-  (libraries (core common))))
+  (libraries (core common))
+  (preprocess (pps (ppx_deriving.std ppx_sexp_conv)))))
 
 (jbuild_version 1)

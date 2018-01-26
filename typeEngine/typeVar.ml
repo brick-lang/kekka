@@ -15,8 +15,8 @@ let sexp_of_t n =
   let ss = sexp_of_string in
   sexp_of_list Fn.id ([
       sp ss Id.sexp_of_t ("type_var_id", n.type_var_id);
-      sp ss Heart.Kind.sexp_of_kind ("type_var_kind", n.type_var_kind);
-      sp ss sexp_of_flavour ("type_var_flavor", n.type_var_flavour)
+      sp ss Heart.Kind.sexp_of_t ("type_var_kind", n.type_var_kind);
+      sp ss Flavour.sexp_of_t ("type_var_flavor", n.type_var_flavour)
     ])
 
 let t_of_sexp s =
@@ -27,8 +27,8 @@ let t_of_sexp s =
   let a = array_of_sexp Fn.id s in
   {
     type_var_id      = snd (ps ss Id.t_of_sexp a.(0));
-    type_var_kind    = snd (ps ss Heart.Kind.kind_of_sexp a.(1));
-    type_var_flavour = snd (ps ss flavour_of_sexp a.(2));
+    type_var_kind    = snd (ps ss Heart.Kind.t_of_sexp a.(1));
+    type_var_flavour = snd (ps ss Flavour.t_of_sexp a.(2));
   }
 
 module C = Comparator.Make(struct
@@ -84,14 +84,14 @@ end
  * Debugging
  ********************************************************************)
 let show_type_var { Heart.Type.type_var_id=name ; Heart.Type.type_var_kind=kind; _} =
-  Id.show name ^ " : " ^ Heart.Kind.Show_kind.show kind
+  Id.show name ^ " : " ^ Heart.Kind.show kind
 
 let rec show_tp =
   let open Heart.Type in function
     | Heart.Type.TVar tvar -> show_type_var tvar
-    | Heart.Type.TCon tcon -> Name.show tcon.type_con_name ^ " : " ^ Heart.Kind.Show_kind.show tcon.type_con_kind
+    | Heart.Type.TCon tcon -> Name.show tcon.type_con_name ^ " : " ^ Heart.Kind.show tcon.type_con_kind
     | TApp(tp,args)  -> show_tp tp ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">"
-    | TSyn(syn,args,body) -> "(syn:" ^ Name.show syn.type_syn_name ^ " : " ^ Heart.Kind.Show_kind.show syn.type_syn_kind
+    | TSyn(syn,args,body) -> "(syn:" ^ Name.show syn.type_syn_name ^ " : " ^ Heart.Kind.show syn.type_syn_kind
                              ^ "<" ^ String.concat ~sep:"," (List.map ~f:show_tp args) ^ ">" ^ "[" ^ show_tp body ^ "])"
     | _ -> "?"
 
@@ -151,7 +151,7 @@ let tvs_is_subset_of t1 t2 = Set.is_subset t1 ~of_:t2 (* Is first argument a sub
    performance with strategy (2).
  ***************************************************************************)
 type tau = Heart.Type.tau       (* $\tau$ *)
-type sub = tau Map.t          (* \sigma:\alpha \mapsto \tau *)
+type sub = tau Map.t            (* \sigma:\alpha \mapsto \tau *)
 
 (**********************************************************************
  * Entities with type variables
@@ -189,7 +189,7 @@ let sub_is_null : sub -> bool = Map.is_empty
 let sub_new (sub : (t * tau) list) : sub =
   Failure.assertwith (Printf.sprintf "TypeVar.sub_new.KindMisMatch: %i {%s}" (List.length sub)
                         (String.concat @@ List.map ~f:(fun (x,t) -> Printf.sprintf "(%s |-> %s)" (show_type_var x) (show_tp t)) sub))
-    (List.for_all ~f:(fun (x,t) -> Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
+    (List.for_all ~f:(fun (x,t) -> Heart.Kind.equal (TypeKind.get_kind_type_var x) (TypeKind.get_kind_typ t)) sub)
     Map.of_alist_exn sub          (* TODO: Don't let this throw an exception *)
 
 (** This is the set of all types in our current environment.
@@ -207,9 +207,9 @@ let sub_find tvar sub : tau = match sub_lookup tvar sub with
   | Some tau ->
       Failure.assertwith ("Type.TypeVar.sub_find: incompatible kind: "
                           ^ Heart.Type.Show_type_var.show tvar ^ ":"
-                          ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_type_var tvar) ^ ","
-                          ^ "?" ^ ":" ^ Heart.Kind.Show_kind.show (TypeKind.get_kind_typ tau))
-        (Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
+                          ^ Heart.Kind.show (TypeKind.get_kind_type_var tvar) ^ ","
+                          ^ "?" ^ ":" ^ Heart.Kind.show (TypeKind.get_kind_typ tau))
+        (Heart.Kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau)) @@
       tau
 
 module HasTypeVar_list (H:HasTypeVar) : HasTypeVarEx with type t = H.t list = struct
@@ -342,7 +342,7 @@ let sub_single tvar (tau:tau) : sub =
    * the IDs of built-in types such as .select must be distinct from further IDs generated
    * by the compiler. *)
   Map.singleton tvar tau
-  |> Failure.assertwith "Type.TypeVar.sub_single.KindMismatch" (Heart.Kind.Eq_kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
+  |> Failure.assertwith "Type.TypeVar.sub_single.KindMismatch" (Heart.Kind.equal (TypeKind.get_kind_type_var tvar) (TypeKind.get_kind_typ tau))
   |> Failure.assertwith ("Type.TypeVar.sub_single: recursive type: " ^ show_type_var tvar) (not (Set.mem (HasTypeVar_typ.ftv tau) tvar))
 
 let sub_compose (sub1:sub) (sub2:sub) : sub =
@@ -354,9 +354,10 @@ let (@@@) sub1 sub2 = sub_compose sub1 sub2
 let sub_extend (tvar:Heart.Type.type_var) (tau:tau) (sub:sub) =
   (sub_single tvar tau) @@@ sub
 
-let fresh_type_var kind (flavour : Heart.Kind.flavour) =
-  let id = Unique.unique_id (match flavour with Heart.Kind.Meta -> "_v" | Heart.Kind.Skolem -> "$v" | Heart.Kind.Bound -> "v") in
-  { Heart.Type.type_var_id = id; type_var_kind = kind; type_var_flavour = flavour }
+let fresh_type_var kind (flavour : Heart.Type.Flavour.t) =
+  let open Heart.Kind in
+  let id = Unique.unique_id (match flavour with Flavour.Meta -> "_v" | Flavour.Skolem -> "$v" | Flavour.Bound -> "v") in
+  Heart.Type.({ type_var_id = id; type_var_kind = kind; type_var_flavour = flavour })
 
 
 (*********************************************************************

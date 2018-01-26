@@ -74,8 +74,8 @@ and infer_type = typ
  * Eg. $\alpha^K$ *)
 and type_var = {
   type_var_id      : Id.t;
-  type_var_kind    : Kind.kind;
-  type_var_flavour : Kind.flavour;
+  type_var_kind    : Kind.t;
+  type_var_flavour : Kind.Flavour.t;
 }
 
 (**
@@ -83,20 +83,20 @@ and type_var = {
  * inferred types in "Core.core" are always of the 'Bound' flavour.
  * 'Meta' and 'Skolem' type variables only ever occur during type inference. *)
 (* TODO: Figure out why this was redeclared from Kind.flavour? *)
-and flavour = Kind.flavour
+(* and flavour = Kind.Flavour.t *)
 
 (** Type constants have a name and a kind.
  *  Eg. $c^K$ *)
 and type_con =  {
   type_con_name : Name.t;
-  type_con_kind : Kind.kind;
+  type_con_kind : Kind.t;
 }
 
 (** Type synonyms have an identifier, kind, and rank (used for partial ordering among type synonyms)
  * Eg. $\alpha^K_r$  *)
 and type_syn = {
   type_syn_name : Name.t;
-  type_syn_kind : Kind.kind;
+  type_syn_kind : Kind.t;
   type_syn_rank : synonym_rank;
   type_syn_info : syn_info option;
 }
@@ -117,7 +117,7 @@ and synonym_rank = int
 and data_info = {
   data_info_sort    : Syntax.DataKind.t;
   data_info_name    : Name.t;
-  data_info_kind    : Kind.kind;
+  data_info_kind    : Kind.t;
   data_info_params  : type_var list;       (** arguments *)
   data_info_constrs : con_info list;
   (* data_info_range   : range; *)         (** location information *)
@@ -145,7 +145,7 @@ and con_info = {
 (** A type synonym is quantified by type parameters *)
 and syn_info = {
   syn_info_name   : Name.t;
-  syn_info_kind   : Kind.kind;
+  syn_info_kind   : Kind.t;
   syn_info_params : type_var list;        (** parameters *)
   syn_info_typ    : typ;                  (** result type *)
   syn_info_rank   : synonym_rank;
@@ -211,12 +211,12 @@ end
 and Show_type_var : BasicClasses.Show with type t = type_var = struct
   type t = type_var
   let show s = Printf.sprintf "{ type_var_id : %s; type_var_kind : %s; type_var_flavour : %s }"
-                 (Id.show s.type_var_id) (Kind.Show_kind.show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
+                 (Id.show s.type_var_id) (Kind.show s.type_var_kind) (Show_flavour.show s.type_var_flavour)
 end
 
-and Show_flavour : BasicClasses.Show with type t = Kind.flavour = struct
-  open Kind
-  type t = flavour
+and Show_flavour : BasicClasses.Show with type t = Kind.Flavour.t = struct
+  open Kind.Flavour
+  type t = Kind.Flavour.t
   let show = function
     | Meta -> "Meta"
     | Skolem -> "Skolem"
@@ -226,13 +226,13 @@ end
 and Show_type_con : BasicClasses.Show with type t = type_con = struct
   type t = type_con
   let show s = Printf.sprintf "{ type_con_name : %s; type_con_kind : %s }"
-                 (Name.show s.type_con_name) (Kind.Show_kind.show s.type_con_kind)
+                 (Name.show s.type_con_name) (Kind.show s.type_con_kind)
 end
 
 and Show_type_syn : BasicClasses.Show with type t = type_syn = struct
   type t = type_syn
   let show s = Printf.sprintf "{ type_syn_name : %s; type_syn_kind : %s; type_syn_rank : %s; type_syn_info : %s }"
-                 (Name.show s.type_syn_name) (Kind.Show_kind.show s.type_syn_kind)
+                 (Name.show s.type_syn_name) (Kind.show s.type_syn_kind)
                  (string_of_int s.type_syn_rank)
                  (match s.type_syn_info with None -> "None"
                                            | Some i -> "("^ Show_syn_info.show i ^")")
@@ -241,29 +241,10 @@ end
 and Show_syn_info : BasicClasses.Show with type t = syn_info = struct
   type t = syn_info
   let show s = Printf.sprintf "{ name : %s; kind : %s; params : %s; typ : %s; rank : %s; doc : %s }"
-                 (Name.show s.syn_info_name) (Kind.Show_kind.show s.syn_info_kind)
+                 (Name.show s.syn_info_name) (Kind.show s.syn_info_kind)
                  (List.to_string s.syn_info_params ~f:(fun e -> Show_type_var.show e))
                  (Show_typ.show s.syn_info_typ) (string_of_int s.syn_info_rank)
                  s.syn_info_doc
-end
-
-module Eq_flavour : BasicClasses.Eq with type t = Kind.flavour = struct
-  open Kind
-  type t = flavour
-  let equal x y = match x with
-    | Meta   -> (match y with Meta   -> true | _ -> false)
-    | Skolem -> (match y with Skolem -> true | _ -> false)
-    | Bound  -> (match y with Bound  -> true | _ -> false)
-end
-
-module Ord_flavour = struct
-  open Kind
-  type t = flavour
-  module Eq = Eq_flavour
-  let compare x y = match x with
-    | Meta   -> (match y with Meta -> 0 | _ -> -1)
-    | Skolem -> (match y with Meta -> 1 | Skolem -> 0 | Bound -> 1)
-    | Bound  -> (match y with Bound -> 0 | _ -> 1)
 end
 
 let show_con_info (info:con_info) = Name.show info.con_info_name
@@ -433,7 +414,7 @@ let rec is_Fun tp =
    Primitive types
  ****************************************************)
 
-let tcon_int = { type_con_name = Name.tp_int; type_con_kind = Kind.kind_star }
+let tcon_int = { type_con_name = Name.tp_int; type_con_kind = Kind.Prim.star }
 
 (** Type of integers (@Int@) *)
 let type_int : tau = TCon(tcon_int)
@@ -443,9 +424,9 @@ let is_type_int = function
   | _        -> false
 
 (** Type of floats *)
-let type_float : tau = TCon({ type_con_name = Name.tp_float; type_con_kind = Kind.kind_star})
+let type_float : tau = TCon({ type_con_name = Name.tp_float; type_con_kind = Kind.Prim.star})
 
-let tcon_char = { type_con_name = Name.tp_char; type_con_kind = Kind.kind_star}
+let tcon_char = { type_con_name = Name.tp_char; type_con_kind = Kind.Prim.star}
 
 (** Type of characters *)
 let type_char : tau = TCon(tcon_char)
@@ -454,7 +435,7 @@ let is_type_char = function
   | TCon(tc) -> tc = tcon_char
   | _        -> false
 
-let tcon_string = { type_con_name = Name.tp_string; type_con_kind = Kind.kind_star};;
+let tcon_string = { type_con_name = Name.tp_string; type_con_kind = Kind.Prim.star};;
 
 (** Type of strings *)
 let type_string : tau = TCon(tcon_string)
@@ -467,7 +448,7 @@ let label_name (tp : tau) : Name.t =
   | _ -> failwith "Type.Unify.label_name: label is not a constant"
 
 let effect_empty : tau =
-  TCon({ type_con_name = Name.effect_empty; type_con_kind = Kind.kind_effect })
+  TCon({ type_con_name = Name.effect_empty; type_con_kind = Kind.Prim.effect })
 
 let is_effect_empty (tp : tau) : bool =
   match expand_syn tp with
@@ -475,7 +456,7 @@ let is_effect_empty (tp : tau) : bool =
   | _       -> false
 
 let tcon_effect_extend : type_con =
-  { type_con_name = Name.effect_extend; type_con_kind = (Kind.kind_fun Kind.kind_label (Kind.kind_fun Kind.kind_effect Kind.kind_effect)) }
+  { type_con_name = Name.effect_extend; type_con_kind = (Kind.Prim.fun_1 Kind.Prim.label (Kind.Prim.fun_1 Kind.Prim.effect Kind.Prim.effect)) }
 
 let rec extract_effect_extend (t : tau) : tau list * tau =
   let extract_label (l : tau) : tau list =
@@ -505,7 +486,7 @@ let rec effect_extend (label : tau) (eff : tau) : tau =
 (* prevent over expansion of type synonyms here (see also: Core.Parse.teffect) *)
 and effect_extends (labels : tau list) (eff : tau) : tau =
   match labels with
-  | [TSyn({type_syn_kind=kind;_},_,_) as lab] when is_effect_empty eff && kind = Kind.kind_effect -> lab
+  | [TSyn({type_syn_kind=kind;_},_,_) as lab] when is_effect_empty eff && kind = Kind.Prim.effect -> lab
   | _ -> List.fold_right ~f:effect_extend ~init:eff labels
 
 let effect_fixed (labels : tau list) : tau = effect_extends labels effect_empty
@@ -584,11 +565,11 @@ let minimal_form : typ -> typ = function
  ***********************************************)
 
 let single (name : Name.t) : effect =
-  effect_extend (TCon { type_con_name = name; type_con_kind = Kind.kind_effect }) effect_empty
+  effect_extend (TCon { type_con_name = name; type_con_kind = Kind.Prim.effect }) effect_empty
 
 let type_divergent : tau = single Name.tp_div
 
-let tcon_total = { type_con_name = Name.effect_empty; type_con_kind = Kind.kind_effect }
+let tcon_total = { type_con_name = Name.effect_empty; type_con_kind = Kind.Prim.effect }
 
 let type_total : tau = TCon tcon_total
 
@@ -600,14 +581,14 @@ let type_partial : tau = single Name.tp_partial
 
 let type_pure : tau = effect_fixed [type_partial; type_divergent]
 
-let tcon_bool : type_con = { type_con_name = Name.tp_bool; type_con_kind = Kind.kind_star }
+let tcon_bool : type_con = { type_con_name = Name.tp_bool; type_con_kind = Kind.Prim.star }
 let type_bool : tau = TCon tcon_bool
 
 let is_type_bool : tau -> bool = function
   | TCon tc -> tc = tcon_bool
   | _       -> false
 
-let tcon_unit : type_con = { type_con_name = Name.tp_unit; type_con_kind = Kind.kind_star }
+let tcon_unit : type_con = { type_con_name = Name.tp_unit; type_con_kind = Kind.Prim.star }
 let type_unit : tau  = TCon tcon_unit
 
 let is_type_unit : tau -> bool = function
@@ -616,7 +597,7 @@ let is_type_unit : tau -> bool = function
 
 let tcon_list : type_con = {
   type_con_name = Name.tp_list;
-  type_con_kind = (Kind.kind_fun Kind.kind_star Kind.kind_star)
+  type_con_kind = (Kind.Prim.fun_1 Kind.Prim.star Kind.Prim.star)
 }
 
 (** Type of lists (@[]@) *)
@@ -632,14 +613,14 @@ let type_app t ts =
   | (TApp(t1,ts0),_) -> TApp(t1,(ts0 @ ts))
   | (_,_)            -> TApp(t,ts)
 
-let type_void : tau = TCon { type_con_name = Name.tp_void; type_con_kind = Kind.kind_star }
+let type_void : tau = TCon { type_con_name = Name.tp_void; type_con_kind = Kind.Prim.star }
 
 let type_tuple (n : int) : tau =
-  TCon { type_con_name = (Name.tuple n); type_con_kind = (Kind.kind_arrow_n n)}
+  TCon { type_con_name = (Name.tuple n); type_con_kind = (Kind.Prim.arrow_n n)}
 
 let tcon_optional : type_con = {
   type_con_name = Name.tp_optional;
-  type_con_kind = (Kind.kind_fun Kind.kind_star Kind.kind_star)
+  type_con_kind = (Kind.Prim.fun_1 Kind.Prim.star Kind.Prim.star)
 }
 
 let type_optional : tau = TCon tcon_optional
@@ -733,19 +714,7 @@ module Eq_pred : BasicClasses.Eq with type t = pred = struct
   let equal = match_pred
 end
 
-let sexp_of_flavour = Kind.sexp_of_flavour
-  (* function
-   * | Bound  -> Sexp.Atom "Bound"
-   * | Skolem -> Sexp.Atom "Skolem"
-   * | Meta   -> Sexp.Atom "Meta"; *)
-
-let flavour_of_sexp = Kind.flavour_of_sexp
-  (* let open Sexp in function
-   *   | Atom "Bound"  -> Bound
-   *   | Atom "Skolem" -> Skolem
-   *   | Atom "Meta"   -> Meta
-   *   | _             -> assert false (\* TODO: make this raise an exn *\) *)
-
+module Flavour = Kind.Flavour
 
 let pred_type = function
   | PredSub (t1,t2) -> type_fun [(Name.create "sub", t1)] type_total t2

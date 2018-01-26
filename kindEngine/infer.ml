@@ -21,7 +21,7 @@ let rec user_kind_to_kind =
       let%bind k2' = user_kind_to_kind k2 in begin
         match (k1', k2') with
         | InfKind.Con(kk1), InfKind.Con(kk2) ->
-            return @@ InfKind.Con(Kind.kind_fun kk1 kk2)
+            return @@ InfKind.Con(Kind.Prim.fun_1 kk1 kk2)
         | _ -> return @@ InfKind.App(k1',k2')
       end
   | UserKind.Parens(k) -> user_kind_to_kind k

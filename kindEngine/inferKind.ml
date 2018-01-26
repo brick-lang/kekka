@@ -5,12 +5,12 @@ open Common
 module InfKind = struct
   type t =
     | Var of Common.Id.t         (* variable *)
-    | Con of Heart.Kind.kind     (* constructor *)
+    | Con of Heart.Kind.t     (* constant *)
     | App of t * t               (* application *)
 
-  let star = Con Heart.Kind.kind_star
+  let star = Con Heart.Kind.Prim.star
   (* let inf_kind_handled = KICon Kind.kind_handled *)
-  let fun_1 k1 k2 = App(App(Con Heart.Kind.kind_arrow, k1), k2) (* (->) k1 k2 *)
+  let fun_1 k1 k2 = App(App(Con Heart.Kind.Prim.arrow, k1), k2) (* (->) k1 k2 *)
   let fun_n kinds k = List.fold_right ~init:k ~f:fun_1 kinds
 
   (* HasKindVar *)
