@@ -18,22 +18,26 @@ module TypeDef = struct
                    is_extend : bool } (* true if this is an extension of the datatype *)
   type group  = t list
   type groups = group list
+  let is_extension = function
+    | Data{is_extend=true} -> true
+    | _ -> false
 end
 
 (************************************************
  * Data representation
  ************************************************)
-type con_repr =
-  | ConEnum      of {con_type_name : Name.t; con_tag : int} (* part of enumeration (none has fields) *)
-  | ConIso       of {con_type_name : Name.t; con_tag : int} (* one constructor with one field *)
-  | ConSingleton of {con_type_name : Name.t; con_tag : int} (* the only constructor without fields *)
-  | ConSingle    of {con_type_name : Name.t; con_tag : int} (* there is only one constructor  *)
-  | ConStruct    of {con_type_name : Name.t; con_tag : int} (* constructor as value type *)
-  | ConAsCons    of {con_type_name : Name.t; con_tag : int; (* constructor is the cons node of a list-like datatype  (may have one or more fields) *)
-                     con_as_nil: Name.t } 
-  | ConOpen      of {con_type_name : Name.t}                (* constructor of open data type *)
-  | ConNormal    of {con_type_name : Name.t; con_tag : int} (* a regular constructor *)
-
+module ConRepr = struct
+  type t =
+    | Enum      of {type_name : Name.t; tag : int} (* part of enumeration (none has fields) *)
+    | Iso       of {type_name : Name.t; tag : int} (* one constructor with one field *)
+    | Singleton of {type_name : Name.t; tag : int} (* the only constructor without fields *)
+    | Single    of {type_name : Name.t; tag : int} (* there is only one constructor  *)
+    | Struct    of {type_name : Name.t; tag : int} (* constructor as value type *)
+    | AsCons    of {type_name : Name.t; tag : int; (* constructor is the cons node of a list-like datatype  (may have one or more fields) *)
+                    as_nil: Name.t } 
+    | Open      of {type_name : Name.t}                (* constructor of open data type *)
+    | Normal    of {type_name : Name.t; tag : int} (* a regular constructor *)
+end
 
 (****************************************************************************
  * Expressions
@@ -52,7 +56,7 @@ type expr =
   | TypeApp of expr * (Type.typ list)
 
   (* Literals, constants, and labels *)
-  | Constructor of { con_name : tname; con_repr : con_repr}
+  | Constructor of { con_name : tname; con_repr : ConRepr.t}
   | Literal of literal
 
   (* Let *)
@@ -78,12 +82,12 @@ and guard = {
 
 and pattern =
   | PatConstructor of { pat_con_name : tname
-                   ; pat_con_patterns : pattern list
-                   ; pat_con_repr : con_repr
-                   ; pat_type_args : Type.typ list
-                   ; pat_type_res : Type.typ
-                   (* ; pat_con_info : con_info *)
-                   }
+                      ; pat_con_patterns : pattern list
+                      ; pat_con_repr : ConRepr.t
+                      ; pat_type_args : Type.typ list
+                      ; pat_type_res : Type.typ
+                      (* ; pat_con_info : con_info *)
+                      }
 
   | PatVariable of { pat_name : tname; pat_pattern : pattern }
   | PatLiteral of { pat_lit : literal }
