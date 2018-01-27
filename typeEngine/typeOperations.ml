@@ -63,7 +63,7 @@ and extend (tp:Type.rho) : Type.rho * (Expr.expr -> Expr.expr) =
 
 (** General instantiation for skolemize and instantiate  *)
 and instantiate_ex_fl (flavour:Type.Flavour.t) (tp:Type.typ)
-  : (Type.type_var list * Evidence.t list * Type.rho * (Expr.expr -> Expr.expr)) =
+  : (Type.TypeVar.t list * Evidence.t list * Type.rho * (Expr.expr -> Expr.expr)) =
   match Type.split_pred_type tp with
   | ([],[],rho) -> ([], [], rho, Util.id)
   | (vars, preds, rho) ->
@@ -82,8 +82,8 @@ and pred_name (pred:Type.pred) : Expr.tname =
                            | Type.PredIFace (iname,_) -> Expr.fresh_name (Name.show iname)
   in (name, Type.pred_type pred)
 
-and fresh_sub_x (makeTVar:Type.type_var -> Type.typ) (flavour:Type.Flavour.t) (vars:Type.type_var list) : Type.type_var list * sub =
-  let tvars = List.map ~f:(fun tv -> fresh_type_var tv.Type.type_var_kind flavour) vars in
+and fresh_sub_x (makeTVar:Type.TypeVar.t -> Type.typ) (flavour:Type.Flavour.t) (vars:Type.TypeVar.t list) : Type.TypeVar.t list * sub =
+  let tvars = List.map ~f:(fun tv -> fresh_type_var tv.Type.TypeVar.kind flavour) vars in
   let sub = sub_new (List.zip_exn vars (List.map tvars ~f:makeTVar)) in
   (tvars, sub)
 

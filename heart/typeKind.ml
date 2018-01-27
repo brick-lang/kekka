@@ -1,5 +1,4 @@
 open Common
-open Heart
 
 (*********************************
    Get the kind of a type
@@ -18,24 +17,23 @@ end
 
 
 let get_kind_kind k = k
-let get_kind_type_var { Type.type_var_kind = k; _ } = k
-let get_kind_type_con { Type.type_con_kind = k; _ } = k
+let get_kind_type_var { Type.TypeVar.kind = k; _ } = k
+let get_kind_type_con { Type.TypeCon.kind = k; _ } = k
 let get_kind_type_syn { Type.type_syn_kind = k; _ } = k
 let rec get_kind_typ =
-  let open Kind in 
   let rec collect acc = function
-    | KApp(KApp(arr,k1),k2) when arr = Prim.arrow -> collect (k1::acc) k2
+    | Kind.App(Kind.App(arr,k1),k2) when arr = Kind.Prim.arrow -> collect (k1::acc) k2
     | k -> k :: acc
   in
   let rec kind_apply l k =
     match (l,k) with
-    | ([],_) -> k
-    | ((_::rest),KApp(KApp(arr,k1),k2)) -> kind_apply rest k2
-    | (_,_) -> Core.failwithf "TypeKind.t_apply: illegal kind in application? %s" (Kind.show k) ()
+    | [], _ -> k
+    | (_::rest), Kind.App(Kind.App(arr,k1),k2) -> kind_apply rest k2
+    | _,_ -> Core.failwithf "TypeKind.t_apply: illegal kind in application? %s" (Kind.show k) ()
   in
   let open Type in function
     | TForall(_,_,tp) -> get_kind_typ tp
-    | TFun _          -> Prim.star
+    | TFun _          -> Kind.Prim.star
     | TVar v          -> get_kind_type_var v
     | TCon c          -> get_kind_type_con c
     | TSyn(syn,xs,tp) -> (*getKind tp (* this is wrong for partially applied type synonym arguments, see "kind/alias3" test *)*)

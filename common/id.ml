@@ -4,12 +4,13 @@ open Core
 
 (** Identifiers are unique compiler generated identities *)
 type t = int
+[@@deriving show, sexp]
 
 (** A list of identifiers *)
 type ids = t list
 
 (** show quotes around the id *)
-let rec pp_id fmt id =
+let rec pp fmt id =
   Format.pp_print_string fmt @@ "\"" ^ (Int.to_string id) ^ "\""
 
 (** create a fresh identifier *)
@@ -24,11 +25,6 @@ let generate base_name (id:t) = create id
 let nil : t = 0
 
 let number (i:t) : int = i
-
-let sexp_of_t : t -> Sexp.t = sexp_of_int
-let t_of_sexp : Sexp.t -> t = int_of_sexp
-
-let show (i:t) = string_of_int i
 
 module Map = Int.Map
 module Set = Int.Set

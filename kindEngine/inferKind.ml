@@ -5,7 +5,7 @@ open Common
 module InfKind = struct
   type t =
     | Var of Common.Id.t         (* variable *)
-    | Con of Heart.Kind.t     (* constant *)
+    | Con of Heart.Kind.t        (* constant *)
     | App of t * t               (* application *)
 
   let star = Con Heart.Kind.Prim.star

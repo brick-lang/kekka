@@ -60,6 +60,9 @@ module TypeDef = struct
         doc : string;
       }
   let is_extend = function DataType{is_extend=true} -> true | _ -> false
+  let binder = function DataType{binder} | Synonym{binder} -> binder
+  let is_datatype = function DataType _ -> true | _ -> false
+  let is_synonym = function Synonym _ -> true | _ -> false
 end 
 
 module TypeDefGroup = struct

@@ -1,7 +1,8 @@
 open Core
 open Common
 
-type tname = Name.t * Type.typ 
+type tname = Name.t * Type.typ
+let get_name tname = fst tname
 
 (************************************************
  * Type definitions
@@ -52,7 +53,7 @@ type expr =
   | App of expr * (expr list)
 
   (* Type (universal) abstraction application *)
-  | TypeLam of Type.type_var list * expr
+  | TypeLam of Type.TypeVar.t list * expr
   | TypeApp of expr * (Type.typ list)
 
   (* Literals, constants, and labels *)
@@ -118,8 +119,8 @@ let open_effect_expr
       (tp_from : Type.typ) (tp_to : Type.typ)
       (expr : expr) : expr =
   let open Type in
-  let a : type_var = { type_var_id = -1; type_var_kind = Kind.Prim.effect; type_var_flavour = Bound } in
-  let b : type_var = { type_var_id = -2; type_var_kind = Kind.Prim.effect; type_var_flavour = Bound } in
+  let a = Type.TypeVar.{ id = -1; kind = Kind.Prim.effect; flavour = Bound } in
+  let b = Type.TypeVar.{ id = -2; kind = Kind.Prim.effect; flavour = Bound } in
   (* forall a b. fun(x:tp_from)-> tp_to[total] *)
   let tp_open : typ = TForall([a;b], [], TFun([(Name.create "x", tp_from)], Type.type_total, tp_to)) in
   let var_open : expr = Var { var_name = (Name.effect_open, tp_open)
@@ -132,12 +133,12 @@ let open_effect_expr
  ***********************************************************)
 
 (** Add kind and type application  *)
-let add_type_apps (ts: Type.type_var list) (e:expr) : expr = match (ts,e) with 
+let add_type_apps (ts: Type.TypeVar.t list) (e:expr) : expr = match (ts,e) with 
   | ([], e) -> e
   | (ts, TypeApp(e, args)) -> TypeApp(e, args @ List.map ts ~f:(fun t -> Type.TVar t))
   | (ts, e) -> TypeApp(e, List.map ts ~f:(fun t -> Type.TVar t))
 
-let add_type_lambdas (pars: Type.type_var list) (e:expr) : expr = match (pars, e) with
+let add_type_lambdas (pars: Type.TypeVar.t list) (e:expr) : expr = match (pars, e) with
   | ([], e) -> e
   | (pars, TypeLam(ps, e)) -> TypeLam(pars @ ps, e)
   | (pars, e) -> TypeLam(pars, e)

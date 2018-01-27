@@ -66,11 +66,11 @@ let fresh_kind =
 let fresh_type_var tb flavour =
   let open ConcreteSyntax.TypeBinder in
   let id = Unique.unique_id (Name.show tb.name) in
-  return Heart.Type.({type_var_id=id; type_var_kind=tb.kind; type_var_flavour=flavour})
+  return Heart.Type.TypeVar.{id; kind=tb.kind; flavour}
 
-(* let subst x =
- *   let%bind sub = get_ksub in
- *   return (sub |=> x) *)
+let subst x =
+  let%bind sub = get_ksub in
+  return InferKind.InfKind.(sub |=> x)
 
 let get_kgamma =
   let%bind env = get_kind_env in
@@ -144,7 +144,7 @@ let inf_qualified_name (name:Name.t) : Name.t t =
     | First aliases ->
         failwithf "module %s is ambiguous. It can refer to: %s" (Name.show name) (List.to_string aliases ~f:Name.show) ()
 
-let find_inf_kind name0 range =
+let find_inf_kind name0 =
   let%bind env = get_kind_env in
   let (name,mb_alias) = match ImportMap.expand name0 env.imports with
     | Second (name', alias) -> (name', Some alias)
