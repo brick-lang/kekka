@@ -4,10 +4,9 @@ open InferKind
 
 type kst = KSub.t
 type kenv = {
-  (* cscheme : color_scheme; *)
   current_module : Name.t;
-  imports : ImportMap.t;
-  kgamma : Assumption.kgamma;
+  imports  : ImportMap.t;
+  kgamma   : KGamma.t;
   infgamma : InfKGamma.t;
   synonyms : Synonyms.t
 }
@@ -113,16 +112,16 @@ let extend_kgamma (tdefs:Heart.Expr.TypeDef.group) (ki:'a t) : 'a t =
       return (kgamma, tdefs)
     else
       let (name,kind) = name_kind tdef in
-      match Assumption.lookup_q name kgamma with
-      | None -> return (Assumption.extend ~name ~data:kind kgamma, tdef::tdefs)
+      match KGamma.lookup_q name kgamma with
+      | None -> return (KGamma.extend ~name ~data:kind kgamma, tdef::tdefs)
       | Some _ ->
           failwith (Printf.sprintf "Type %s is already defined" (Name.show name))
           (* return (kgamma, tdefs) *)
   in
   let extend_unsafe tdefs (ki:'a t) : 'a t =
-    let new_kgamma = Assumption.new_dedup (List.map ~f:name_kind tdefs) in
+    let new_kgamma = KGamma.new_dedup (List.map ~f:name_kind tdefs) in
     let ksyns = Synonyms.create (List.concat_map tdefs ~f:(function Heart.Expr.TypeDef.Synonym{syn_info} -> [syn_info] | _ -> [])) in
-    fun env st -> ki {env with kgamma = Assumption.union env.kgamma new_kgamma;
+    fun env st -> ki {env with kgamma = KGamma.union env.kgamma new_kgamma;
                                synonyms = Synonyms.compose env.synonyms ksyns} st
   in
   let%bind env = get_kind_env in
@@ -155,7 +154,7 @@ let find_inf_kind name0 =
    * TODO: check for the locally inferred names for casing too. *)
   match Name.Map.find env.infgamma name with
   | Some infkind -> return (name, infkind)
-  | None -> match Assumption.lookup env.current_module name env.kgamma with
+  | None -> match KGamma.lookup env.current_module name env.kgamma with
     | Found(qname,kind) ->
         let name' = if Name.is_qualified name then qname else (Name.unqualify qname) in
         if not (Name.case_equal name' name) then
@@ -174,7 +173,7 @@ let qualify_def name =
 
 let find_kind name =
   let%bind env = get_kind_env in
-  match Assumption.lookup env.current_module name env.kgamma with
+  match KGamma.lookup env.current_module name env.kgamma with
   | Found(qname,kind) -> return (qname, kind)
   | _ -> failwithf "KindEngine.InferMonad.find_kind: unknown type constructor: %s" (Name.show name) ()
 

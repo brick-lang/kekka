@@ -3,7 +3,7 @@ open Common
 open Common.Util
 
 (* Kind assumptions *)
-type kgamma = Heart.Kind.t QNameMap.t
+type t = Heart.Kind.t QNameMap.t
 
 let empty  = QNameMap.empty
 let single = QNameMap.single

@@ -264,7 +264,7 @@ let rec inf_type_def_groups = let open InferMonad in function
 let infer_kinds
       (max_struct_fields : int)       (* max struct fields option *)
       (imports : ImportMap.t)         (* import aliases *)
-      (kgamma0 : Assumption.kgamma)   (* initial kind gamma *)
+      (kgamma0 : KGamma.t)            (* initial kind gamma *)
       (syns0 : Synonyms.t)            (* initial list of synonyms *)
       program                         (* original program *)
   =
