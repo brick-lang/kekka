@@ -8,8 +8,8 @@ open InferKind
  * - Kindcheck all types in the program
  * - Translate user types to internal types
  * - Collect lists of data types, synonyms and constructors
- * - Expand all synonyms (i.e., replace @id(int)@ by @id(int) == int@)
- * - Transate type definition groups and externals to Core. *)
+ * - Expand all synonyms (i.e., replace `id(int)` by `id(int) == int`)
+ * - Transate type definition groups and externals to Heart.Expr *)
 
 (**************************************************************
  * Resolve kinds: from InfKind to Kind and UserType to Type
@@ -135,6 +135,64 @@ and resolve_app idmap partial_syn = let open InferMonad in
       
   | _ -> failwith "KindEngine.Infer.resolve_app: this case should never occur after kind checking"
 
+
+let resolve_con_param idmap (vis,vb) = let open InferMonad in
+  let%bind typ = resolve_type idmap false vb.ValueBinder.typ in
+  let%bind expr = match vb.ValueBinder.expr with
+    | None -> return None
+    | Some e -> (* return @@ Some *)
+        failwith "KindEngine.Infer.resolve_con_param: option parameter expression in constructor"
+  in 
+  return (vis, {vb with typ; expr})
+
+
+let resolve_constructor type_name type_sort is_singleton type_result type_params idmap constr = let open InferMonad in
+  let open UserCon in
+  let%bind qname      = qualify_def constr.name in
+  let%bind exist'     = mapM resolve_type_binder constr.exists in
+  let%bind exist_vars = mapM (fun ename -> fresh_type_var ename Kind.Flavour.Bound) exist' in
+  let idmap' =
+    Name.Map.union
+      (Name.Map.of_alist_exn @@
+       List.zip_exn (List.map ~f:(fun uc -> uc.name) constr.exists) exist_vars)
+      idmap
+  in
+  let%bind params' = mapM (resolve_con_param idmap') constr.params in
+  let result = Type.type_app type_result (List.map ~f:(fun t -> Type.TVar t) type_params) in
+  let scheme = Type.quantify (type_params @ exist_vars) @@
+    if List.is_empty params' then
+      result
+    else
+      Type.type_fun (List.map ~f:(fun (_,p) -> (p.name, p.typ)) params') Type.type_total result
+  in
+  return (UserCon.{name = qname; exists= exist'; params = params'; vis = constr.vis; doc = constr.doc},
+          Type.{con_info_name = qname;
+                con_info_type_name = type_name;
+                con_info_foralls = type_params;
+                con_info_exists = exist_vars;
+                con_info_params =
+                  List.mapi params' ~f:(fun i (_,b) ->
+                      let i = i+1 in (* 1-indexed *)
+                      (if Name.is_nil b.ValueBinder.name then
+                         Name.new_field_name (Int.to_string i)
+                       else b.ValueBinder.name),
+                      b.ValueBinder.typ);
+                con_info_type = scheme;
+                con_info_type_sort = type_sort;
+                con_info_param_vis = List.map ~f:fst params';
+                con_info_singleton = is_singleton;
+                con_info_doc = constr.doc})
+
+let rec occurs names is_neg = function
+  | Type.TForall(_,_,tp) -> occurs names is_neg tp
+  | Type.TFun(args,effect,result) -> List.exists ~f:(occurs names (not is_neg)) (List.map ~f:snd args) || occurs names is_neg effect || occurs names is_neg result
+  | Type.TCon(tcon)      -> if List.mem names tcon.Type.TypeCon.name ~equal:Name.equal then is_neg else false
+  | Type.TVar(tvar)      -> false
+  | Type.TApp(tp,args)   -> List.exists ~f:(occurs names is_neg) (tp::args)
+  | Type.TSyn(_,_,tp)    -> occurs names is_neg tp
+  
+let occurs_negative names tp = occurs names false tp
+                                 
 let resolve_typedef is_rec rec_names = let open InferMonad in
   let rec kind_arity = function
     | Kind.App(Kind.App(kcon, k1), k2) when Kind.equal kcon Kind.Prim.arrow -> k1::(kind_arity k2)
@@ -191,11 +249,30 @@ let resolve_typedef is_rec rec_names = let open InferMonad in
           forM params' (fun param -> fresh_type_var param Kind.Flavour.Bound)
       in
       let tvar_map = Name.Map.of_alist_exn @@ List.zip_exn (List.map params' ~f:(fun p -> p.name)) type_vars in
-      (* let%bind consinfos = 
-       *   forM constructors (resolve_constructor newtp'.name sort (not )) *)
-      assert false
+      let%bind consinfos = 
+        forM constructors
+          (resolve_constructor newtp'.name sort
+             ((not @@ Syntax.DataDef.is_open ddef) && List.length constructors = 1)
+             type_result type_vars tvar_map)
+      in
+      let (constructors', infos) = List.unzip consinfos in begin
+        match sort with
+        | Retractive -> return ()
+        | _ -> if List.exists ~f:(occurs_negative rec_names)
+                    (List.concat_map infos ~f:(fun c -> List.map ~f:snd c.Type.con_info_params)) then
+              failwithf "Type %s is declared is declared as being (co)inductive but it occurs\n recursively in a negative position.\n hint: declare it as a 'rectype' to allow negative occurances" (Name.show @@ Name.unqualify newtp.name) ()
+            else return ()
+      end >>
+      let data_info = Type.{data_info_sort    = sort;
+                            data_info_name    = newtp'.name;
+                            data_info_kind    = newtp'.kind;
+                            data_info_params  = type_vars;
+                            data_info_constrs = infos;
+                            data_info_def     = Syntax.(match ddef with Normal when is_rec -> Rec | _ -> ddef);
+                            data_info_doc     = doc }
+      in
+      return @@ Expr.TypeDef.Data {data_info; vis; con_vis=List.map ~f:(fun uc -> uc.vis) constructors; is_extend}
         
-let inf_typedef x = assert false
 
 (**************************************************************
  * Setup type environment for recursive definitions
@@ -227,6 +304,46 @@ let bind_typedef tdef = let open InferMonad in (* extension *)
 (**************************************************************
  * Infer kinds for the type definition groups
  **************************************************************)
+
+let unify_binder tbinder defbinder infgamma reskind = let open InferMonad in
+  let kind = InfKind.fun_n (List.map ~f:(fun tb -> tb.TypeBinder.kind) infgamma) reskind in
+  Unify.unify Unify.Infer tbinder.TypeBinder.kind kind >>
+  return tbinder
+
+let inf_user_type expected context user_type = assert false
+
+let inf_con_value_binder (vis, (ValueBinder.{typ} as vb)) = let open InferMonad in
+  let%bind tp' = inf_user_type InfKind.star (Unify.Check "Constructor parameters must be values") typ in
+  return (vis, ValueBinder.{vb with typ=tp'})
+  
+let inf_constructor (UserCon.{exists; params} as constr) = let open InferMonad in
+  let%bind infgamma = mapM bind_type_binder exists in
+  let%bind params'  = extend_inf_gamma infgamma (mapM inf_con_value_binder params) in
+  return @@ UserCon.{constr with exists=infgamma; params=params'}
+
+let inf_typedef (tbinder,td) = let open InferMonad in
+  match td with
+  | TypeDef.Synonym({binder=syn; params=args; synonym=tp} as sr) ->
+      let%bind infgamma = mapM bind_type_binder args in
+      let%bind kind     = fresh_kind in
+      let%bind tp'      = extend_inf_gamma infgamma (inf_user_type kind Unify.Infer tp) in
+      let%bind tbinder' = unify_binder tbinder syn infgamma kind in
+      return @@ TypeDef.Synonym{sr with binder = tbinder'; params = infgamma; synonym=tp' }
+
+  | TypeDef.DataType({binder=newtp; params=args; constrs=constructors; def; is_extend} as dtr) ->
+      let%bind infgamma      = mapM bind_type_binder args in
+      let%bind constructors' = extend_inf_gamma infgamma (mapM inf_constructor constructors) in
+      (* TODO: unify extended datatype kind with original *)
+      let%bind reskind       = if Syntax.DataDef.is_open def then return InfKind.star else fresh_kind in
+      let%bind tbinder'      = unify_binder tbinder newtp infgamma reskind in begin
+        if not is_extend then
+          return ()
+        else
+          let%bind (qname, kind) = find_inf_kind newtp.name in
+          Unify.unify (Unify.Check "extended type must have the same kind as the open type") tbinder'.kind kind
+      end >>
+      return @@ TypeDef.DataType{dtr with binder = tbinder'; params = infgamma; constrs=constructors'}
+
 let check_recursion tdefs =
   if (List.length tdefs > 1) && (List.for_all tdefs ~f:TypeDef.is_synonym) then
     failwith "Type synonyms cannot be recursive";

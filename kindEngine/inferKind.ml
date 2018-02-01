@@ -7,6 +7,7 @@ module InfKind = struct
     | Var of Common.Id.t         (* variable *)
     | Con of Heart.Kind.t        (* constant *)
     | App of t * t               (* application *)
+  [@@deriving show]
 
   let star = Con Heart.Kind.Prim.star
   (* let inf_kind_handled = KICon Kind.kind_handled *)
@@ -50,7 +51,7 @@ end
 module KSub = struct
   type t = InfKind.t Id.Map.t
 
-  let empty = Id.Map.empty
+  let empty : t  = Id.Map.empty
   let single id kind = Id.Map.singleton id kind
 
   (* Left-biased union *)

@@ -32,8 +32,8 @@ end
 module UserCon = struct
   type ('t,'u,'k) t = {
     name : Name.t;
-    exists : 'k TypeBinder.t;
-    params : (Syntax.Visibility.t * ('t, 'u Expr.t option) ValueBinder.t);
+    exists : 'k TypeBinder.t list;
+    params : (Syntax.Visibility.t * ('t, 'u Expr.t option) ValueBinder.t) list;
     vis : Syntax.Visibility.t;
     doc : string;
   }
@@ -52,10 +52,10 @@ module TypeDef = struct
     | DataType of {
         binder : 'k TypeBinder.t;
         params : 'k TypeBinder.t list;
-        constrs : ('t, 'u, 'k) UserCon.t;
+        constrs : ('t, 'u, 'k) UserCon.t list;
+        vis : Syntax.Visibility.t;
         sort : Syntax.DataKind.t;
         def : Syntax.DataDef.t;
-        vis : Syntax.Visibility.t;
         is_extend: bool;
         doc : string;
       }

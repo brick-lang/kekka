@@ -134,13 +134,13 @@ let is_hidden_name name =
   (String.length name.name_id) > 0 &&
   (String.get name.name_id 0) = '.'
 
-(* let new_field_name i = *)
-(*   new_hidden_name ("field" ^ (show i)) *)
+let new_field_name i =
+  new_hidden_name ("field" ^ i)
 
 let is_field_name = is_hidden_name
 
-(* let new_implicit_type_var_name i = *)
-(*   new_hidden_name ("t" ^ (show i)) *)
+let new_implicit_type_var_name i =
+  new_hidden_name ("t" ^  i)
 
 let is_implicit_type_var_name = is_hidden_name
 

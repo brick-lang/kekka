@@ -135,8 +135,7 @@ and data_info = {
   data_info_params  : TypeVar.t list;       (** arguments *)
   data_info_constrs : con_info list;
   (* data_info_range   : range; *)         (** location information *)
-  data_info_is_rec  : bool;                (** recursive?  *)
-  data_info_is_open : bool;
+  data_info_def     : Syntax.DataDef.t;
   data_info_doc     : string
 }
 
@@ -145,13 +144,14 @@ and data_info = {
 and con_info = {
   con_info_name : Name.t;
   con_info_type_name    : Name.t;
-  (* con_info_type_sort : name *)
+  con_info_foralls      : TypeVar.t list;       (** quantifiers  *)
   con_info_exists       : TypeVar.t list;       (** existentials *)
   con_info_params       : (Name.t * typ) list;   (** field types *)
   con_info_type         : scheme;
   con_info_type_sort    : Syntax.DataKind.t;
   (* con_info_range        : range; *)         (** Source code position information *)
   (* con_info_param_ranges : range list; *)
+  con_info_param_vis    : Syntax.Visibility.t list;
   con_info_singleton    : bool;                (** is this the only constructor of this type? *)
   con_info_doc          : string
 }
