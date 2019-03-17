@@ -1,7 +1,0 @@
-(library
- ((name common)
-  (library_flags (-linkall))
-  (libraries (core ppx_inline_test.runtime-lib))
-  (preprocess (pps (ppx_deriving.std ppx_sexp_conv ppx_inline_test)))))
-
-(jbuild_version 1)

@@ -8,11 +8,11 @@ bug-reports: "https://github.com/brick-lang/kekka/issues"
 dev-repo: "https://github.com/brick-lang/kekka"
 license: "Apache-2.0"
 build: [
-  ["jbuilder" "build" "-p" name "-j" jobs]
+  ["dune" "build" "-p" name "-j" jobs]
 ]
 depends: [
   "core"
-  "jbuilder" {build & >= "1.0+beta12"}
+  "dune" {build & >= "1.0"}
   "ppx_deriving"
   "ppx_inline_test"
   "ppx_let"

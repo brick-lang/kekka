@@ -1,6 +1,0 @@
-(library
- ((name kindEngine)
-  (libraries (core common heart))
-  (preprocess (pps (ppx_let ppx_deriving.std)))))
-
-(jbuild_version 1)

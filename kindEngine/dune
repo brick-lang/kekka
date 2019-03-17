@@ -1,0 +1,6 @@
+(library
+ (name kindEngine)
+ (public_name kekka.kindEngine)
+ (libraries core common heart)
+ (preprocess
+  (pps ppx_let ppx_deriving.std)))

@@ -1,0 +1,6 @@
+(library
+ (name typeEngine)
+ (public_name kekka.typeEngine)
+ (libraries core common heart)
+ (preprocess
+  (pps ppx_let ppx_deriving.std ppx_sexp_conv)))

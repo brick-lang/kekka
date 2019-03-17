@@ -1,0 +1,8 @@
+(library
+ (name common)
+ (public_name kekka.common)
+ (library_flags -linkall)
+ (libraries core ppx_inline_test.runtime-lib)
+ (inline_tests)
+ (preprocess
+  (pps ppx_deriving.std ppx_sexp_conv ppx_inline_test)))
