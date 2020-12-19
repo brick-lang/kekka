@@ -11,3 +11,19 @@ As I go, I will be documenting what I learn and understand, in hopes that it may
 
 ## Licensing
 Kōka is licensed under the Apache License version 2.0. Because this is currently a direct port from Haskell to OCaml (for now), I consider Kekka to be a true derivative work, so it is also licensed under the APLv2.
+
+## Development
+To get started working with Kekka, follow standard procedure for developing a project using OPAM:
+```bash
+$ git clone https://github.com/brick-lang/kekka
+$ cd kekka
+$ opam install . --deps-only
+```
+The project can be built simply using
+```bash
+$ dune build
+```
+or installed using 
+```bash
+$ opam install .
+```
