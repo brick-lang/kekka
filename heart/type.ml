@@ -1,5 +1,5 @@
 (**
- * types.ml
+ * type.ml
  * Ported from Daan Leijin's implementation,
  * which is licensed under the APLv2.0
  * Copyright 2012 Microsoft Corporation, Daan Leijen
@@ -22,8 +22,8 @@ module TypeVar = struct
     flavour : Kind.Flavour.t;
   } [@@deriving show, sexp]
 
-  let equal tv1 tv2 = tv1.id = tv2.id
-  let compare tv1 tv2 = compare tv1.id tv2.id
+  let equal tv1 tv2 = Id.equal tv1.id tv2.id
+  let compare tv1 tv2 = Id.compare tv1.id tv2.id
 end
 
 (** Type constants have a name and a kind.
@@ -245,7 +245,7 @@ let is_skolem tv =
    Equality
  *****************************************************)
 
-let eq_type_syn ts1 ts2 = ts1.type_syn_name = ts2.type_syn_name
+let eq_type_syn ts1 ts2 = Name.equal ts1.type_syn_name ts2.type_syn_name
 let compare_type_syn ts1 ts2 = Name.compare ts1.type_syn_name ts2.type_syn_name
 
 (******************************************************
@@ -376,7 +376,7 @@ let tcon_int = TypeCon.{name = Name.tp_int; kind = Kind.Prim.star }
 let type_int : tau = TCon(tcon_int)
 
 let is_type_int = function
-  | TCon(tc) -> tc = tcon_int
+  | TCon(tc) -> TypeCon.equal tc tcon_int
   | _        -> false
 
 (** Type of floats *)
@@ -388,7 +388,7 @@ let tcon_char : TypeCon.t = { name = Name.tp_char; kind = Kind.Prim.star}
 let type_char : tau = TCon(tcon_char)
 
 let is_type_char = function
-  | TCon(tc) -> tc = tcon_char
+  | TCon(tc) -> TypeCon.equal tc tcon_char
   | _        -> false
 
 let tcon_string : TypeCon.t = {name=Name.tp_string; kind=Kind.Prim.star}
@@ -400,7 +400,7 @@ let label_name (tp : tau) : Name.t =
   match expand_syn tp with
   | TCon(tc) -> tc.TypeCon.name
   | TApp(TCon(tc),_) ->
-      Failure.assertwith "non-expanded type synonym used as a label" (tc.TypeCon.name <> Name.effect_extend) tc.TypeCon.name
+      Failure.assertwith "non-expanded type synonym used as a label" (not @@ Name.equal tc.TypeCon.name Name.effect_extend) tc.TypeCon.name
   | _ -> failwith "Type.Unify.label_name: label is not a constant"
 
 let effect_empty : tau =
@@ -408,7 +408,7 @@ let effect_empty : tau =
 
 let is_effect_empty (tp : tau) : bool =
   match expand_syn tp with
-  | TCon tc -> tc.TypeCon.name = Name.effect_empty
+  | TCon tc -> Name.equal tc.TypeCon.name Name.effect_empty
   | _       -> false
 
 let tcon_effect_extend : TypeCon.t =
@@ -417,13 +417,13 @@ let tcon_effect_extend : TypeCon.t =
 let rec extract_effect_extend (t : tau) : tau list * tau =
   let extract_label (l : tau) : tau list =
     match expand_syn l with
-    | TApp(TCon(tc),[_;e]) when tc.name = Name.effect_extend ->
+    | TApp(TCon(tc),[_;e]) when (Name.equal tc.name Name.effect_extend) ->
         let (ls,tl) = extract_effect_extend l in
         Failure.assertwith "label was not a fixed effect type alias" (is_effect_fixed tl) ls
     | _ -> [l]
   in
   match expand_syn t with
-  | TApp(TCon(tc),[l;e]) when tc.name = Name.effect_extend ->
+  | TApp(TCon(tc),[l;e]) when (Name.equal tc.name Name.effect_extend) ->
       let (ls,tl) = extract_effect_extend e in
       let ls0 = extract_label l in
       (ls0 @ ls, tl)
@@ -442,7 +442,9 @@ let rec effect_extend (label : tau) (eff : tau) : tau =
 (* prevent over expansion of type synonyms here (see also: Core.Parse.teffect) *)
 and effect_extends (labels : tau list) (eff : tau) : tau =
   match labels with
-  | [TSyn({type_syn_kind=kind;_},_,_) as lab] when is_effect_empty eff && kind = Kind.Prim.effect -> lab
+  | [TSyn({type_syn_kind=kind;_},_,_) as lab] when
+      (is_effect_empty eff) &&
+      (Kind.equal kind Kind.Prim.effect) -> lab
   | _ -> List.fold_right ~f:effect_extend ~init:eff labels
 
 let effect_fixed (labels : tau list) : tau = effect_extends labels effect_empty
@@ -460,7 +462,7 @@ let effect_fixed (labels : tau list) : tau = effect_extends labels effect_empty
 (*   List.fold_right ~f:effect_extend_no_dup ~init:eff labels *)
 
 let rec shallow_extract_effect_extend : tau -> tau list * tau = function
-  | TApp(TCon(tc),[l;e]) when tc.name = Name.effect_extend ->
+  | TApp(TCon(tc),[l;e]) when (Name.equal tc.name Name.effect_extend) ->
       let (ls,tl) = shallow_extract_effect_extend e in
       (l::ls, tl)
   | t -> ([],t)
@@ -530,7 +532,7 @@ let tcon_total : TypeCon.t = {name=Name.effect_empty; kind=Kind.Prim.effect }
 let type_total : tau = TCon tcon_total
 
 let is_type_total : tau -> bool = function
-  | TCon tc -> tc = tcon_total
+  | TCon tc -> TypeCon.equal tc tcon_total
   | _       -> false
 
 let type_partial : tau = single Name.tp_partial
@@ -541,14 +543,14 @@ let tcon_bool : TypeCon.t = { name=Name.tp_bool; kind = Kind.Prim.star}
 let type_bool : tau = TCon tcon_bool
 
 let is_type_bool : tau -> bool = function
-  | TCon tc -> tc = tcon_bool
+  | TCon tc -> TypeCon.equal tc tcon_bool
   | _       -> false
 
 let tcon_unit : TypeCon.t = { name = Name.tp_unit; kind = Kind.Prim.star }
 let type_unit : tau  = TCon tcon_unit
 
 let is_type_unit : tau -> bool = function
-  | TCon tc -> tc = tcon_unit
+  | TCon tc -> TypeCon.equal tc tcon_unit
   | _       -> false
 
 let tcon_list : TypeCon.t = {
@@ -583,7 +585,7 @@ let type_optional : tau = TCon tcon_optional
 
 let is_optional (tp : typ) : bool =
   match expand_syn tp with
-  | TApp(TCon tc,[t]) -> tc = tcon_optional
+  | TApp(TCon tc,[t]) -> TypeCon.equal tc tcon_optional
   | _ -> false
 
 let make_optional (tp : typ) : typ =
@@ -591,12 +593,12 @@ let make_optional (tp : typ) : typ =
 
 let unoptional (tp : typ) : typ =
   match expand_syn tp with
-  | TApp((TCon tc),[t]) when tc = tcon_optional -> t
+  | TApp((TCon tc),[t]) when (TypeCon.equal tc tcon_optional) -> t
   | _ -> tp
 
 (** Remove type synonym indirections *)
 let rec pruneSyn : rho -> rho = function
-  | TSyn(sin,args,t) -> pruneSyn t
+  | TSyn(_sin,_args,t) -> pruneSyn t
   | TApp(t1,ts)      -> TApp((pruneSyn t1), (List.map ~f:pruneSyn ts))
   | rho              -> rho
 
@@ -632,10 +634,10 @@ end
  ******************************************************)
 let rec match_type tp1 tp2 =
   match (expand_syn tp1, expand_syn tp2) with
-  | (TForall(vs1,ps1,t1), TForall(vs2,ps2,t2)) -> (vs1 = vs2 && match_preds ps1 ps2 && match_type t1 t2)
+  | (TForall(vs1,ps1,t1), TForall(vs2,ps2,t2)) -> ((List.equal TypeVar.equal vs1 vs2) && match_preds ps1 ps2 && match_type t1 t2)
   | (TFun(pars1,eff1,t1),TFun(pars2,eff2,t2))  -> (match_types (List.map pars1 ~f:snd) (List.map ~f:snd pars2) && match_effect eff1 eff2 && match_type t1 t2)
-  | (TCon(c1),TCon(c2))                        -> c1 = c2
-  | (TVar(v1),TVar(v2))                        -> v1 = v2
+  | (TCon(c1),TCon(c2))                        -> TypeCon.equal c1 c2
+  | (TVar(v1),TVar(v2))                        -> TypeVar.equal v1 v2
   | (TApp(t1,ts1),TApp(t2,ts2))                -> (match_type t1 t2 && match_types ts1 ts2)
   (* | (TSyn(syn1,ts1,t1),TSyn(syn2,ts2,t2))      -> (syn1 = syn2 && match_types ts1 ts2 && match_type t1 t2) *)
   | _ -> false
@@ -649,7 +651,7 @@ and match_effect eff1 eff2 =
 and match_pred p1 p2 =
   match (p1,p2) with
   | (PredSub(sub1,sup1), PredSub(sub2,sup2)) -> (match_type sub1 sub2 && match_type sup1 sup2)
-  | (PredIFace(n1,ts1), PredIFace(n2,ts2))   -> (n1 = n2 && match_types ts1 ts2)
+  | (PredIFace(n1,ts1), PredIFace(n2,ts2))   -> (Name.equal n1 n2 && match_types ts1 ts2)
   | _ -> false
 
 and match_preds ps1 ps2 =

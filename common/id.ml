@@ -6,6 +6,9 @@ open Core
 type t = int
 [@@deriving show, sexp]
 
+let equal = Int.equal
+let compare = Int.compare
+
 (** A list of identifiers *)
 type ids = t list
 

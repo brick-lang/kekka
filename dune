@@ -2,3 +2,6 @@
  (name kekka)
  (public_name kekka)
  (libraries core kindEngine typeEngine))
+(env
+  (dev
+    (flags (:standard -warn-error -A))))

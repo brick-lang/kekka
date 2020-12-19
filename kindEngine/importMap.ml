@@ -13,7 +13,7 @@ let empty = []
 let extend name fq_name (imp_map:t) =
   let rpath = List.rev @@ Name.split_module_name name in
   (* make sure it's not already there *)
-  if List.Assoc.mem imp_map rpath ~equal:(List.equal ~equal:Name.equal) then
+  if List.Assoc.mem imp_map rpath ~equal:(List.equal Name.equal) then
     None
   else
     Some((rpath,fq_name)::imp_map)

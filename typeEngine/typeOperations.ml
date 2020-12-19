@@ -36,6 +36,8 @@ module HasTypeVar_evidence_list = HasTypeVar_list(Evidence)
 let rec instantiate (tp:Type.typ) : Type.rho =
   let (_,_,rho,_) = instantiate_ex tp in rho
 
+(** Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
+  * the instantiated type, and a core transformer function (which applies type arguments and evidence) *)
 and instantiate_ex (tp:Type.typ) =
   let (ids, preds, rho, coref) = instantiate_ex_fl Type.Flavour.Meta tp in
   let (erho, coreg) = extend rho in

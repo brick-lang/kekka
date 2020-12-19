@@ -1,4 +1,5 @@
 open Core
+open Core.Poly
 open BasicClasses
 open Util
 

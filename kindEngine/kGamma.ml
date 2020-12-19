@@ -18,7 +18,7 @@ let find ctxt name kg = match lookup ctxt name kg with
   | _ -> failwithf "Kind.Assumption.kgammaFind: unbound type '%s' in %s" (Name.show name)
            (List.to_string ~f:(fun (k,v) -> Printf.sprintf "(%s) => %s" (Name.show k) (Heart.Kind.show v)) @@ QNameMap.to_alist kg) ()
 
-let to_list kg = List.sort ~cmp:(fun (n1,_) (n2,_) -> Name.compare n1 n2) @@ QNameMap.to_alist kg
+let to_list kg = List.sort ~compare:(fun (n1,_) (n2,_) -> Name.compare n1 n2) @@ QNameMap.to_alist kg
 let filter mod_name = QNameMap.filter_names ~f:(Name.equal mod_name <.> Name.qualifier)
   
 (** kind gamma union; error on duplicates *)

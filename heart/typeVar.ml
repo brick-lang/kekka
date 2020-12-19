@@ -43,7 +43,11 @@ module Map = struct
 
   (* left-biased union(s) *)
   let union m1 m2 =
-    merge m1 m2 ~f:(fun ~key -> function `Both(l,r) -> Some l | `Left l -> Some l | `Right r -> Some r)
+    merge m1 m2 ~f:(fun ~key -> function
+        | `Both(l,r) -> Some l
+        | `Left l -> Some l
+        | `Right r -> Some r
+      )
 
   let rec union_list = function
     | [] -> empty
@@ -55,7 +59,7 @@ end
 (********************************************************************
  * Debugging
  ********************************************************************)
-let show_type_var Type.TypeVar.{id=name; kind} =
+let show_type_var Type.TypeVar.{id=name; kind; flavour} =
   Id.show name ^ " : " ^ Kind.show kind
 
 let rec show_tp =

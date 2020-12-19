@@ -63,7 +63,7 @@ let rec resolve_type idmap partial_syn user_type = let open InferMonad in
       let%bind tp'    = resolve_type (Name.Map.set idmap ~key:tname.TypeBinder.name ~data:tvar) false tp in
       return @@ Type.quantify [tvar] tp'
 
-  | Quan(Exists, tname, tp) ->
+  | Quan(Exists, _tname, _tp) ->
       failwith "TODO: KindEngine.Infer.resolve_type: existentials are not supported yet"
 
   | Qual(preds,tp) ->
@@ -78,8 +78,8 @@ let rec resolve_type idmap partial_syn user_type = let open InferMonad in
       return @@ Type.TFun(args', effect', tp')
 
   | App(tp,args) -> resolve_app idmap partial_syn (collect_args tp args)
-  | Var(name)    -> resolve_app idmap partial_syn (user_type, [])
-  | Con(name)    -> resolve_app idmap partial_syn (user_type, [])
+  | Var(_name)   -> resolve_app idmap partial_syn (user_type, [])
+  | Con(_name)   -> resolve_app idmap partial_syn (user_type, [])
   | Parens(tp)   -> resolve_type idmap partial_syn tp
   | Ann(tp,_)    -> resolve_type idmap partial_syn tp
 
@@ -89,6 +89,7 @@ and resolve_predicate idmap tp = let open InferMonad in
   | Type.TApp(Type.TCon(tc), targs) -> return @@ Type.PredIFace(tc.name, targs)
   | tp' -> failwithf "KindEngine.Infer.resolve_predicate: invalid predicate: %s" (Type.Show_typ.show tp') ()
 
+(* Kind/Infer.hs:944 *)
 and resolve_app idmap partial_syn = let open InferMonad in
   function
   | KindedUserType.Var(name), args ->
@@ -100,7 +101,7 @@ and resolve_app idmap partial_syn = let open InferMonad in
       let%bind args' = mapM (resolve_type idmap false) args in
       return @@ Type.type_app tp' args'
 
-  | KindedUserType.Con(name), [fixed;ext] when Name.equal name Name.effect_append ->
+  | KindedUserType.Con(name), [fixed;ext] when (Name.equal name Name.effect_append) ->
       let%bind fixed' = resolve_type idmap false fixed in
       let%bind ext'   = resolve_type idmap false ext   in
       let (ls,tl) = Type.extract_ordered_effect fixed' in
